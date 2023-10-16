@@ -70,14 +70,54 @@ void main() {
     fragColor = color;
 })";
 
-int main()
+class TMyApp
+{
+	private:
+		GLuint framebuffer;
+		unsigned int shaderProgram;
+		GLuint VAO;
+		GLFWwindow* window;
+		float f_time;
+		float lastTime;
+		
+		void draw(void);
+	public:
+		TMyApp();
+		~TMyApp();
+		
+		void run(void);
+};
+
+void TMyApp::draw(void)
+{
+	float now = glfwGetTime();
+	float delta = now - lastTime;
+
+	lastTime = now;
+	f_time += delta;
+
+	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glUseProgram(shaderProgram);
+	glUniform1f(glGetUniformLocation(shaderProgram, "fTime"), f_time); 
+	glBindVertexArray(VAO);
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+
+	glfwSwapBuffers(window);
+}
+
+TMyApp::TMyApp()
 {
     int width = 200;
     int height = 200;
 
 	glm::vec2 screen(1, 1);
 
-	float deltaTime = 1.0f;
+	f_time = 1.0f;
 
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -85,7 +125,7 @@ int main()
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
-    GLFWwindow* window = glfwCreateWindow(width, height, "OpenglContext", nullptr, nullptr);
+    window = glfwCreateWindow(width, height, "OpenglContext", nullptr, nullptr);
     if (!window)
     {
         std::cerr << "failed to create window" << std::endl;
@@ -111,7 +151,6 @@ int main()
         1.0, 1.0,       1.0, 1.0
     };
 
-    GLuint VAO;
     glGenVertexArrays(1, &VAO);
     glBindVertexArray(VAO);
 
@@ -128,8 +167,6 @@ int main()
 
     glBindVertexArray(0);
 
-
-    GLuint framebuffer;
     glGenFramebuffers(1, &framebuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer); 
 
@@ -155,7 +192,7 @@ int main()
     // check for shader compile errors
 
     // link shaders
-    unsigned int shaderProgram = glCreateProgram();
+    shaderProgram = glCreateProgram();
     glAttachShader(shaderProgram, vertexShader);
     glAttachShader(shaderProgram, fragmentShader);
     glLinkProgram(shaderProgram);
@@ -167,36 +204,31 @@ int main()
     glUseProgram(shaderProgram);
 	glUniform2fv(glGetUniformLocation(shaderProgram, "iResolution"), 1, &screen[0]);
 
+    lastTime = glfwGetTime();
+}
 
-    while (!glfwWindowShouldClose(window))
-    {
-
-        //float currentFrame = glfwGetTime();
-		deltaTime += 0.001;
-
-        if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-        {
-            glfwSetWindowShouldClose(window, true);
-        }
-
-        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-
-
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glUseProgram(shaderProgram);
-        //glUniform1f(glGetUniformLocation(shaderProgram, "fTime"), (int)currentFrame % 60); 
-		glUniform1f(glGetUniformLocation(shaderProgram, "fTime"), deltaTime); 
-        glBindVertexArray(VAO);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-
-
-        glfwSwapBuffers(window);
-        glfwPollEvents();
-
-    }
+TMyApp::~TMyApp()
+{
     glfwTerminate();
     // cleanup
+}
+
+void TMyApp::run(void)
+{
+    while (!glfwWindowShouldClose(window))
+    {
+		if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+		{
+			glfwSetWindowShouldClose(window, true);
+		}
+
+		draw();
+        glfwPollEvents();
+    }
+}
+
+int main()
+{
+	TMyApp app;
+	app.run();
 }
