@@ -73,6 +73,7 @@ void main() {
 class TMyApp
 {
 	private:
+	    bool is_fullscreen;
 		GLuint framebuffer;
 		unsigned int shaderProgram;
 		GLuint VAO;
@@ -80,6 +81,7 @@ class TMyApp
 		float f_time;
 		float lastTime;
 
+		void set_mode(void);
 		void on_size(GLFWwindow* window, int width, int height);
 		void draw(void);
 	public:
@@ -88,6 +90,11 @@ class TMyApp
 		
 		void run(void);
 };
+
+void TMyApp::set_mode(void)
+{
+	//
+}
 
 void TMyApp::on_size(__attribute__((unused)) GLFWwindow* window, int width, int height)
 {
@@ -120,10 +127,12 @@ void TMyApp::draw(void)
 	glfwSwapBuffers(window);
 }
 
-TMyApp::TMyApp()
+TMyApp::TMyApp():
+	//is_fullscreen(true)
+	is_fullscreen(false)
 {
-    int width = 200;
-    int height = 200;
+    int width;
+    int height;
 
 	glm::vec2 screen(1, 1);
 
@@ -134,31 +143,48 @@ TMyApp::TMyApp()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+	
+	const char caption[] = "alphawater";
+	
+	if (is_fullscreen)
+	{
+		GLFWmonitor* mon =  glfwGetPrimaryMonitor();
+		const GLFWvidmode* mode = glfwGetVideoMode(mon);
+		width = mode->width;
+		height = mode->height;
+		window = glfwCreateWindow(width, height, caption, mon, nullptr);
 
-    window = glfwCreateWindow(width, height, "OpenglContext", nullptr, nullptr);
+		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+	}
+	else
+	{
+		width = 200;
+		height = 200;
+		window = glfwCreateWindow(width, height, caption, nullptr, nullptr);
+
+		glfwSetWindowUserPointer(window, this);	
+
+		auto cb = [](GLFWwindow* window, int width, int height)
+		{
+			TMyApp *o = reinterpret_cast<TMyApp *>(glfwGetWindowUserPointer(window));
+			o->on_size(window, width, height);
+		};
+		glfwSetFramebufferSizeCallback(window, cb);
+	}
+
     if (!window)
     {
         std::cerr << "failed to create window" << std::endl;
         exit(-1);
     }
+
     glfwMakeContextCurrent(window);
 	
-	glfwSetWindowUserPointer(window, this);	
-
-	auto cb = [](GLFWwindow* window, int width, int height)
-	{
-		TMyApp *o = reinterpret_cast<TMyApp *>(glfwGetWindowUserPointer(window));
-		o->on_size(window, width, height);
-	};
-	glfwSetFramebufferSizeCallback(window, cb);
-
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
     {
         std::cerr << "failed to initialize glad with processes " << std::endl;
         exit(-1);
     }
-
-    //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     float quadVerts[] = {
         -1.0, -1.0,     0.0, 0.0,
@@ -234,12 +260,30 @@ TMyApp::~TMyApp()
 
 void TMyApp::run(void)
 {
+	bool is_mode_switch = false;
+	
     while (!glfwWindowShouldClose(window))
     {
 		if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		{
 			glfwSetWindowShouldClose(window, true);
 		}
+
+		if ((glfwGetKey(window, GLFW_KEY_RIGHT_ALT) == GLFW_PRESS) &&
+			(glfwGetKey(window, GLFW_KEY_ENTER) == GLFW_PRESS))
+		{
+			if(!is_mode_switch)
+			{
+				is_mode_switch = true;
+				is_fullscreen = !is_fullscreen;
+				set_mode();
+			}
+		}
+		else
+		{
+			is_mode_switch = false;
+		}
+
 
 		draw();
         glfwPollEvents();
