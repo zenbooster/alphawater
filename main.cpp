@@ -1,7 +1,12 @@
 #include <iostream>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wexpansion-to-defined"
 #include <glm/glm.hpp>
+#pragma GCC diagnostic pop
+
 #include <GL/gl.h>
 
 const char *vertexShaderSource = 
@@ -19,7 +24,7 @@ const char *fragmentShaderSource =
 R"(#version 330 core
 in vec2 texCoord;
 uniform vec2      iResolution;
-uniform float     iTime;
+uniform float     fTime;
 out vec4 fragColor;
 
 float M(inout vec3 s, inout vec3 q, float t)
@@ -43,7 +48,7 @@ void mainImage(out vec4 o, vec2 u)
     o *= 0.;
     vec3 q, p, s;
     vec2 R = iResolution.xy;
-    float t = iTime;
+    float t = fTime;
     float d = 2.5;
     float r;
     for(; z < 7.; z++ )
@@ -70,12 +75,9 @@ int main()
     int width = 200;
     int height = 200;
 
-    //glm::vec2 screen(width, height);
 	glm::vec2 screen(1, 1);
 
-    //float deltaTime = 0.0f;
 	float deltaTime = 1.0f;
-    //float lastFrame = 0.0f;
 
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -99,7 +101,6 @@ int main()
 
     //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-    int samples = 4;
     float quadVerts[] = {
         -1.0, -1.0,     0.0, 0.0,
         -1.0, 1.0,      0.0, 1.0,
@@ -164,16 +165,13 @@ int main()
     glDeleteShader(fragmentShader);
 
     glUseProgram(shaderProgram);
-    //glUniform2fv(glGetUniformLocation(shaderProgram, "iResolution"), 1, &screen[0]);
 	glUniform2fv(glGetUniformLocation(shaderProgram, "iResolution"), 1, &screen[0]);
 
 
     while (!glfwWindowShouldClose(window))
     {
 
-        float currentFrame = glfwGetTime();
-        //deltaTime = currentFrame - lastFrame;
-        //lastFrame = currentFrame;
+        //float currentFrame = glfwGetTime();
 		deltaTime += 0.001;
 
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
@@ -189,8 +187,8 @@ int main()
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glUseProgram(shaderProgram);
-        //glUniform1f(glGetUniformLocation(shaderProgram, "iTime"), (int)currentFrame % 60); 
-		glUniform1f(glGetUniformLocation(shaderProgram, "iTime"), deltaTime); 
+        //glUniform1f(glGetUniformLocation(shaderProgram, "fTime"), (int)currentFrame % 60); 
+		glUniform1f(glGetUniformLocation(shaderProgram, "fTime"), deltaTime); 
         glBindVertexArray(VAO);
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
