@@ -9,6 +9,8 @@
 
 #include <GL/gl.h>
 
+using namespace std;
+
 const char *vertexShaderSource = 
 R"(#version 330 core
 layout (location = 0) in vec2 position;            
@@ -73,7 +75,11 @@ void main() {
 class TMyApp
 {
 	private:
+		static float quadVerts[];
 	    bool is_fullscreen;
+		GLFWmonitor* mon;
+		int _wndPos[2], _wndSize[2];
+		
 		GLuint framebuffer;
 		unsigned int shaderProgram;
 		GLuint VAO;
@@ -91,17 +97,44 @@ class TMyApp
 		void run(void);
 };
 
+float TMyApp::quadVerts[] = {
+	-1.0, -1.0,     0.0, 0.0,
+	-1.0, 1.0,      0.0, 1.0,
+	1.0, -1.0,      1.0, 0.0,
+
+	1.0, -1.0,      1.0, 0.0,
+	-1.0, 1.0,      0.0, 1.0,
+	1.0, 1.0,       1.0, 1.0
+};
+
 void TMyApp::set_mode(void)
 {
-	//
+    if (is_fullscreen)
+    {
+        // backup window position and window size
+        glfwGetWindowPos(window, &_wndPos[0], &_wndPos[1] );
+        glfwGetWindowSize(window, &_wndSize[0], &_wndSize[1] );
+        
+        // get resolution of monitor
+        const GLFWvidmode * mode = glfwGetVideoMode(mon);
+
+        // switch to full screen
+        glfwSetWindowMonitor(window, mon, 0, 0, mode->width, mode->height, 0);
+
+		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+    }
+    else
+    {
+        // restore last window size and position
+        glfwSetWindowMonitor(window, nullptr,  _wndPos[0], _wndPos[1], _wndSize[0], _wndSize[1], 0 );
+
+		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    }
 }
 
 void TMyApp::on_size(__attribute__((unused)) GLFWwindow* window, int width, int height)
 {
-    // make sure the viewport matches the new window dimensions; note that width and 
-    // height will be significantly larger than specified on retina displays.
     glViewport(0, 0, width, height);
-    // Re-render the scene because the current frame was drawn for the old resolution
     draw();
 }
 
@@ -146,15 +179,22 @@ TMyApp::TMyApp():
 	
 	const char caption[] = "alphawater";
 	
+	mon =  glfwGetPrimaryMonitor();
 	if (is_fullscreen)
 	{
-		GLFWmonitor* mon =  glfwGetPrimaryMonitor();
 		const GLFWvidmode* mode = glfwGetVideoMode(mon);
 		width = mode->width;
 		height = mode->height;
 		window = glfwCreateWindow(width, height, caption, mon, nullptr);
 
-		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+		
+		int dt = 100;
+		_wndPos[0] = dt;
+		_wndPos[1] = dt;
+		dt <<= 1;
+		_wndSize[0] = width - dt;
+		_wndSize[1] = height - dt;
 	}
 	else
 	{
@@ -162,39 +202,32 @@ TMyApp::TMyApp():
 		height = 200;
 		window = glfwCreateWindow(width, height, caption, nullptr, nullptr);
 
-		glfwSetWindowUserPointer(window, this);	
-
-		auto cb = [](GLFWwindow* window, int width, int height)
-		{
-			TMyApp *o = reinterpret_cast<TMyApp *>(glfwGetWindowUserPointer(window));
-			o->on_size(window, width, height);
-		};
-		glfwSetFramebufferSizeCallback(window, cb);
+        glfwGetWindowSize(window, &_wndSize[0], &_wndSize[1]);
+        glfwGetWindowPos(window, &_wndPos[0], &_wndPos[1]);
 	}
 
     if (!window)
     {
-        std::cerr << "failed to create window" << std::endl;
+        cerr << "failed to create window" << endl;
         exit(-1);
     }
+
+	glfwSetWindowUserPointer(window, this);	
+
+	auto cb = [](GLFWwindow* window, int width, int height)
+	{
+		TMyApp *o = reinterpret_cast<TMyApp *>(glfwGetWindowUserPointer(window));
+		o->on_size(window, width, height);
+	};
+	glfwSetFramebufferSizeCallback(window, cb);
 
     glfwMakeContextCurrent(window);
 	
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
     {
-        std::cerr << "failed to initialize glad with processes " << std::endl;
+        cerr << "failed to initialize glad with processes " << endl;
         exit(-1);
     }
-
-    float quadVerts[] = {
-        -1.0, -1.0,     0.0, 0.0,
-        -1.0, 1.0,      0.0, 1.0,
-        1.0, -1.0,      1.0, 0.0,
-
-        1.0, -1.0,      1.0, 0.0,
-        -1.0, 1.0,      0.0, 1.0,
-        1.0, 1.0,       1.0, 1.0
-    };
 
     glGenVertexArrays(1, &VAO);
     glBindVertexArray(VAO);
