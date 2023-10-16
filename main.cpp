@@ -97,7 +97,7 @@ int main()
         exit(-1);
     }
 
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     int samples = 4;
     float quadVerts[] = {
