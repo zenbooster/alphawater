@@ -79,7 +79,8 @@ class TMyApp
 		GLFWwindow* window;
 		float f_time;
 		float lastTime;
-		
+
+		void on_size(GLFWwindow* window, int width, int height);
 		void draw(void);
 	public:
 		TMyApp();
@@ -87,6 +88,15 @@ class TMyApp
 		
 		void run(void);
 };
+
+void TMyApp::on_size(__attribute__((unused)) GLFWwindow* window, int width, int height)
+{
+    // make sure the viewport matches the new window dimensions; note that width and 
+    // height will be significantly larger than specified on retina displays.
+    glViewport(0, 0, width, height);
+    // Re-render the scene because the current frame was drawn for the old resolution
+    draw();
+}
 
 void TMyApp::draw(void)
 {
@@ -132,6 +142,15 @@ TMyApp::TMyApp()
         exit(-1);
     }
     glfwMakeContextCurrent(window);
+	
+	glfwSetWindowUserPointer(window, this);	
+
+	auto cb = [](GLFWwindow* window, int width, int height)
+	{
+		TMyApp *o = reinterpret_cast<TMyApp *>(glfwGetWindowUserPointer(window));
+		o->on_size(window, width, height);
+	};
+	glfwSetFramebufferSizeCallback(window, cb);
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
     {
