@@ -78,17 +78,17 @@ class TMyApp
 		static float quadVerts[];
 	    bool is_fullscreen;
 		GLFWmonitor* mon;
-		int _wndPos[2], _wndSize[2];
+		int wnd_pos[2], wnd_size[2];
 		
 		GLuint framebuffer;
 		unsigned int shaderProgram;
 		GLuint VAO;
-		GLFWwindow* window;
+		GLFWwindow* wnd;
 		float f_time;
 		float lastTime;
 
 		void set_mode(void);
-		void on_size(GLFWwindow* window, int width, int height);
+		void on_size(GLFWwindow* wnd, int width, int height);
 		void draw(void);
 	public:
 		TMyApp();
@@ -111,28 +111,28 @@ void TMyApp::set_mode(void)
 {
     if (is_fullscreen)
     {
-        // backup window position and window size
-        glfwGetWindowPos(window, &_wndPos[0], &_wndPos[1] );
-        glfwGetWindowSize(window, &_wndSize[0], &_wndSize[1] );
+        // backup wnd position and wnd size
+        glfwGetWindowPos(wnd, &wnd_pos[0], &wnd_pos[1] );
+        glfwGetWindowSize(wnd, &wnd_size[0], &wnd_size[1] );
         
         // get resolution of monitor
         const GLFWvidmode * mode = glfwGetVideoMode(mon);
 
         // switch to full screen
-        glfwSetWindowMonitor(window, mon, 0, 0, mode->width, mode->height, 0);
+        glfwSetWindowMonitor(wnd, mon, 0, 0, mode->width, mode->height, 0);
 
-		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+		glfwSetInputMode(wnd, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
     }
     else
     {
-        // restore last window size and position
-        glfwSetWindowMonitor(window, nullptr,  _wndPos[0], _wndPos[1], _wndSize[0], _wndSize[1], 0 );
+        // restore last wnd size and position
+        glfwSetWindowMonitor(wnd, nullptr,  wnd_pos[0], wnd_pos[1], wnd_size[0], wnd_size[1], 0 );
 
-		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+		glfwSetInputMode(wnd, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
     }
 }
 
-void TMyApp::on_size(__attribute__((unused)) GLFWwindow* window, int width, int height)
+void TMyApp::on_size(__attribute__((unused)) GLFWwindow* wnd, int width, int height)
 {
     glViewport(0, 0, width, height);
     draw();
@@ -157,7 +157,7 @@ void TMyApp::draw(void)
 	glBindVertexArray(VAO);
 	glDrawArrays(GL_TRIANGLES, 0, 6);
 
-	glfwSwapBuffers(window);
+	glfwSwapBuffers(wnd);
 }
 
 TMyApp::TMyApp():
@@ -185,43 +185,43 @@ TMyApp::TMyApp():
 		const GLFWvidmode* mode = glfwGetVideoMode(mon);
 		width = mode->width;
 		height = mode->height;
-		window = glfwCreateWindow(width, height, caption, mon, nullptr);
+		wnd = glfwCreateWindow(width, height, caption, mon, nullptr);
 
-		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+		glfwSetInputMode(wnd, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 		
 		int dt = 100;
-		_wndPos[0] = dt;
-		_wndPos[1] = dt;
+		wnd_pos[0] = dt;
+		wnd_pos[1] = dt;
 		dt <<= 1;
-		_wndSize[0] = width - dt;
-		_wndSize[1] = height - dt;
+		wnd_size[0] = width - dt;
+		wnd_size[1] = height - dt;
 	}
 	else
 	{
 		width = 200;
 		height = 200;
-		window = glfwCreateWindow(width, height, caption, nullptr, nullptr);
+		wnd = glfwCreateWindow(width, height, caption, nullptr, nullptr);
 
-        glfwGetWindowSize(window, &_wndSize[0], &_wndSize[1]);
-        glfwGetWindowPos(window, &_wndPos[0], &_wndPos[1]);
+        glfwGetWindowSize(wnd, &wnd_size[0], &wnd_size[1]);
+        glfwGetWindowPos(wnd, &wnd_pos[0], &wnd_pos[1]);
 	}
 
-    if (!window)
+    if (!wnd)
     {
-        cerr << "failed to create window" << endl;
+        cerr << "failed to create wnd" << endl;
         exit(-1);
     }
 
-	glfwSetWindowUserPointer(window, this);	
+	glfwSetWindowUserPointer(wnd, this);	
 
-	auto cb = [](GLFWwindow* window, int width, int height)
+	auto cb = [](GLFWwindow* wnd, int width, int height)
 	{
-		TMyApp *o = reinterpret_cast<TMyApp *>(glfwGetWindowUserPointer(window));
-		o->on_size(window, width, height);
+		TMyApp *o = reinterpret_cast<TMyApp *>(glfwGetWindowUserPointer(wnd));
+		o->on_size(wnd, width, height);
 	};
-	glfwSetFramebufferSizeCallback(window, cb);
+	glfwSetFramebufferSizeCallback(wnd, cb);
 
-    glfwMakeContextCurrent(window);
+    glfwMakeContextCurrent(wnd);
 	
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
     {
@@ -295,15 +295,15 @@ void TMyApp::run(void)
 {
 	bool is_mode_switch = false;
 	
-    while (!glfwWindowShouldClose(window))
+    while (!glfwWindowShouldClose(wnd))
     {
-		if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+		if (glfwGetKey(wnd, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		{
-			glfwSetWindowShouldClose(window, true);
+			glfwSetWindowShouldClose(wnd, true);
 		}
 
-		if ((glfwGetKey(window, GLFW_KEY_RIGHT_ALT) == GLFW_PRESS) &&
-			(glfwGetKey(window, GLFW_KEY_ENTER) == GLFW_PRESS))
+		if ((glfwGetKey(wnd, GLFW_KEY_RIGHT_ALT) == GLFW_PRESS) &&
+			(glfwGetKey(wnd, GLFW_KEY_ENTER) == GLFW_PRESS))
 		{
 			if(!is_mode_switch)
 			{
