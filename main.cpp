@@ -85,7 +85,6 @@ class TMyApp
 		static float quadVerts[];
 	    bool is_fullscreen;
 		bool is_screensaver;
-		bool is_preview;
 		GLFWmonitor* mon;
 		int wnd_pos[2], wnd_size[2];
 		
@@ -102,7 +101,8 @@ class TMyApp
 		void on_mouse_pos(GLFWwindow* wnd, double xpos, double ypos);
 		void on_mouse_btn(GLFWwindow* wnd, int button, int action, int mods);
 		void draw(void);
-		void init(bool is_screensaver, bool is_preview, bool is_fullscreen, bool is_visible);
+		inline bool is_preview(void) const;
+		void init(bool is_screensaver, bool is_fullscreen, bool is_visible);
 		void show_usage(void);
 
 	public:
@@ -160,7 +160,7 @@ void TMyApp::on_key(GLFWwindow* wnd, int key, __attribute__((unused)) int scanco
 
 	if(is_screensaver)
 	{
-		if(!is_preview)
+		if(!is_preview())
 		{
 			glfwSetWindowShouldClose(wnd, true);
 		}
@@ -192,7 +192,7 @@ void TMyApp::on_mouse_pos(GLFWwindow* wnd, __attribute__((unused)) double xpos, 
 {
 	static bool is_first_run = true;
 	
-	if(is_screensaver && !is_preview)
+	if(is_screensaver && !is_preview())
 	{
 		if(is_first_run)
 		{
@@ -207,7 +207,7 @@ void TMyApp::on_mouse_pos(GLFWwindow* wnd, __attribute__((unused)) double xpos, 
 
 void TMyApp::on_mouse_btn(GLFWwindow* wnd, __attribute__((unused)) int button, __attribute__((unused)) int action, __attribute__((unused)) int mods)
 {
-	if(is_screensaver && !is_preview)
+	if(is_screensaver && !is_preview())
 	{
 		glfwSetWindowShouldClose(wnd, true);
 	}
@@ -235,13 +235,17 @@ void TMyApp::draw(void)
 	glfwSwapBuffers(wnd);
 }
 
-void TMyApp::init(bool is_screensaver, bool is_preview, bool is_fullscreen, bool is_visible)
+inline bool TMyApp::is_preview(void) const
+{
+	return is_screensaver && !is_fullscreen;
+}
+
+void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 {
     int width;
     int height;
 	
 	this->is_screensaver = is_screensaver;
-	this->is_preview = is_preview;
 	this->is_fullscreen = is_fullscreen;
 
 	glm::vec2 screen(1, 1);
@@ -270,7 +274,6 @@ void TMyApp::init(bool is_screensaver, bool is_preview, bool is_fullscreen, bool
 		wnd = glfwCreateWindow(width, height, caption, mon, nullptr);
 
 		glfwSetInputMode(wnd, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
-		//glfwSetInputMode(wnd, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 		
 		int dt = 100;
 		wnd_pos[0] = dt;
@@ -416,7 +419,7 @@ TMyApp::TMyApp(int argc, char *argv[])
 		{
 			if(!strcmp(argv[1], "/p"))
 			{
-				init(true, true, false, false);
+				init(true, false, false);
 
 				char *s_ptr = argv[2];
 				HWND h_wnd_parent = (HWND)stoull(s_ptr, nullptr, 10);
@@ -439,7 +442,7 @@ TMyApp::TMyApp(int argc, char *argv[])
 		{
 			if(!strcmp(argv[1], "/s"))
 			{
-				init(true, false, true, true);
+				init(true, true, true);
 			}
 			else
 			if(!strcmp(argv[1], "/c"))
@@ -455,7 +458,7 @@ TMyApp::TMyApp(int argc, char *argv[])
 		
 		default:
 		{
-			init(false, false, false, true);
+			init(false, false, true);
 		}
 	}
 }
