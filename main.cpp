@@ -269,8 +269,8 @@ void TMyApp::init(bool is_screensaver, bool is_preview, bool is_fullscreen, bool
 		height = mode->height;
 		wnd = glfwCreateWindow(width, height, caption, mon, nullptr);
 
-		//glfwSetInputMode(wnd, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
-		glfwSetInputMode(wnd, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+		glfwSetInputMode(wnd, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+		//glfwSetInputMode(wnd, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 		
 		int dt = 100;
 		wnd_pos[0] = dt;
