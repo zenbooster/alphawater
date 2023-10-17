@@ -1,6 +1,13 @@
+//#include <windows.h>
+//#include <scrnsave.h>
 #include <iostream>
+#include <io.h>
+#include <fcntl.h>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+
+#define GLFW_EXPOSE_NATIVE_WIN32
+#include <GLFW/glfw3native.h>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wexpansion-to-defined"
@@ -77,6 +84,8 @@ class TMyApp
 	private:
 		static float quadVerts[];
 	    bool is_fullscreen;
+		bool is_screensaver;
+		bool is_preview;
 		GLFWmonitor* mon;
 		int wnd_pos[2], wnd_size[2];
 		
@@ -89,9 +98,16 @@ class TMyApp
 
 		void set_mode(void);
 		void on_size(GLFWwindow* wnd, int width, int height);
+		void on_key(GLFWwindow* wnd, int key, int scancode, int action, int mods);
+		void on_mouse_pos(GLFWwindow* wnd, double xpos, double ypos);
+		void on_mouse_btn(GLFWwindow* wnd, int button, int action, int mods);
 		void draw(void);
+		void init(bool is_screensaver, bool is_preview, bool is_fullscreen, bool is_visible);
+		void show_usage(void);
+
 	public:
-		TMyApp();
+		//TMyApp(bool is_visible = true);
+		TMyApp(int argc, char *argv[]);
 		~TMyApp();
 		
 		void run(void);
@@ -138,6 +154,65 @@ void TMyApp::on_size(__attribute__((unused)) GLFWwindow* wnd, int width, int hei
     draw();
 }
 
+void TMyApp::on_key(GLFWwindow* wnd, int key, __attribute__((unused)) int scancode, int action, int mods)
+{
+	static bool is_mode_switch = false;
+
+	if(is_screensaver)
+	{
+		if(!is_preview)
+		{
+			glfwSetWindowShouldClose(wnd, true);
+		}
+	}
+	else
+	{
+		if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+		{
+			glfwSetWindowShouldClose(wnd, true);
+		}
+		else
+		if (key == GLFW_KEY_ENTER && action == GLFW_PRESS && (mods & GLFW_MOD_ALT))
+		{
+			if(!is_mode_switch)
+			{
+				is_mode_switch = true;
+				is_fullscreen = !is_fullscreen;
+				set_mode();
+			}
+		}
+		else
+		{
+			is_mode_switch = false;
+		}
+	}
+}
+
+void TMyApp::on_mouse_pos(GLFWwindow* wnd, __attribute__((unused)) double xpos, __attribute__((unused)) double ypos)
+{
+	static bool is_first_run = true;
+	
+	if(is_screensaver && !is_preview)
+	{
+		if(is_first_run)
+		{
+			is_first_run = false;
+		}
+		else
+		{
+			glfwSetWindowShouldClose(wnd, true);
+		}
+	}
+}
+
+void TMyApp::on_mouse_btn(GLFWwindow* wnd, __attribute__((unused)) int button, __attribute__((unused)) int action, __attribute__((unused)) int mods)
+{
+	if(is_screensaver && !is_preview)
+	{
+		glfwSetWindowShouldClose(wnd, true);
+	}
+}
+
 void TMyApp::draw(void)
 {
 	float now = glfwGetTime();
@@ -160,12 +235,14 @@ void TMyApp::draw(void)
 	glfwSwapBuffers(wnd);
 }
 
-TMyApp::TMyApp():
-	//is_fullscreen(true)
-	is_fullscreen(false)
+void TMyApp::init(bool is_screensaver, bool is_preview, bool is_fullscreen, bool is_visible)
 {
     int width;
     int height;
+	
+	this->is_screensaver = is_screensaver;
+	this->is_preview = is_preview;
+	this->is_fullscreen = is_fullscreen;
 
 	glm::vec2 screen(1, 1);
 
@@ -175,8 +252,13 @@ TMyApp::TMyApp():
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-	
+	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
+
+	if(!is_visible)
+	{
+		glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+	}
+
 	const char caption[] = "alphawater";
 	
 	mon =  glfwGetPrimaryMonitor();
@@ -187,7 +269,8 @@ TMyApp::TMyApp():
 		height = mode->height;
 		wnd = glfwCreateWindow(width, height, caption, mon, nullptr);
 
-		glfwSetInputMode(wnd, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+		//glfwSetInputMode(wnd, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+		glfwSetInputMode(wnd, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 		
 		int dt = 100;
 		wnd_pos[0] = dt;
@@ -208,24 +291,53 @@ TMyApp::TMyApp():
 
     if (!wnd)
     {
-        cerr << "failed to create wnd" << endl;
+        wcerr << L"failed to create wnd" << endl;
         exit(-1);
     }
 
 	glfwSetWindowUserPointer(wnd, this);	
-
-	auto cb = [](GLFWwindow* wnd, int width, int height)
 	{
-		TMyApp *o = reinterpret_cast<TMyApp *>(glfwGetWindowUserPointer(wnd));
-		o->on_size(wnd, width, height);
-	};
-	glfwSetFramebufferSizeCallback(wnd, cb);
+		auto cb = [](GLFWwindow* wnd, int width, int height)
+		{
+			TMyApp *o = reinterpret_cast<TMyApp *>(glfwGetWindowUserPointer(wnd));
+			o->on_size(wnd, width, height);
+		};
+		glfwSetFramebufferSizeCallback(wnd, cb);
+	}
+	{
+		auto cb = [](GLFWwindow* wnd, int key, int scancode, int action, int mods)
+		{
+			TMyApp *o = reinterpret_cast<TMyApp *>(glfwGetWindowUserPointer(wnd));
+			o->on_key(wnd, key, scancode, action, mods);
+		};	
+		glfwSetKeyCallback(wnd, cb);
+	}
+
+	if(is_screensaver)
+	{
+		{
+			auto cb = [](GLFWwindow* wnd, double xpos, double ypos)
+			{
+				TMyApp *o = reinterpret_cast<TMyApp *>(glfwGetWindowUserPointer(wnd));
+				o->on_mouse_pos(wnd, xpos, ypos);
+			};
+			glfwSetCursorPosCallback(wnd, cb);
+		}
+		{
+			auto cb = [](GLFWwindow* wnd, int button, int action, int mods)
+			{
+				TMyApp *o = reinterpret_cast<TMyApp *>(glfwGetWindowUserPointer(wnd));
+				o->on_mouse_btn(wnd, button, action, mods);
+			};
+			glfwSetMouseButtonCallback(wnd, cb);
+		}
+	}
 
     glfwMakeContextCurrent(wnd);
 	
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
     {
-        cerr << "failed to initialize glad with processes " << endl;
+        wcerr << L"failed to initialize glad with processes " << endl;
         exit(-1);
     }
 
@@ -285,6 +397,69 @@ TMyApp::TMyApp():
     lastTime = glfwGetTime();
 }
 
+void TMyApp::show_usage(void)
+{
+	wcout << L"Неверные параметры!\n"
+			L"Использование:\n"
+			L"alphawater.exe [/c] | [/p <HWND>] | [/s]\n"
+			L"\t/c             - показать диалог настроек\n"
+			L"\t/p <HWND>      - предпросмотр в окне, дочернем по отношению к <HWND>\n"
+			L"\t/s             - запуск в полноэкранном режиме\n\n"
+			L"\tБез параметров - запуск в оконном режиме." << endl;
+}
+
+TMyApp::TMyApp(int argc, char *argv[])
+{
+	switch(argc)
+	{
+		case 1 + 2:
+		{
+			if(!strcmp(argv[1], "/p"))
+			{
+				init(true, true, false, false);
+
+				char *s_ptr = argv[2];
+				HWND h_wnd_parent = (HWND)stoull(s_ptr, nullptr, 10);
+				HWND h_wnd = glfwGetWin32Window(wnd);
+				SetParent(h_wnd, h_wnd_parent);
+				SetWindowLong(h_wnd, GWL_STYLE, WS_VISIBLE | WS_CHILD | WS_CLIPCHILDREN);
+				RECT rc;
+				GetClientRect(h_wnd_parent, &rc);
+				MoveWindow(h_wnd, rc.left, rc.top, rc.right, rc.bottom, TRUE);
+			}
+			else
+			{
+				//show_usage();
+				throw exception();
+			}
+			break;
+		}
+		
+		case 1 + 1:
+		{
+			if(!strcmp(argv[1], "/s"))
+			{
+				init(true, false, true, true);
+			}
+			else
+			if(!strcmp(argv[1], "/c"))
+			{
+			}
+			else
+			{
+				//show_usage();
+				throw exception();
+			}
+			break;
+		}
+		
+		default:
+		{
+			init(false, false, false, true);
+		}
+	}
+}
+
 TMyApp::~TMyApp()
 {
     glfwTerminate();
@@ -293,38 +468,30 @@ TMyApp::~TMyApp()
 
 void TMyApp::run(void)
 {
-	bool is_mode_switch = false;
-	
     while (!glfwWindowShouldClose(wnd))
     {
-		if (glfwGetKey(wnd, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-		{
-			glfwSetWindowShouldClose(wnd, true);
-		}
-
-		if ((glfwGetKey(wnd, GLFW_KEY_RIGHT_ALT) == GLFW_PRESS) &&
-			(glfwGetKey(wnd, GLFW_KEY_ENTER) == GLFW_PRESS))
-		{
-			if(!is_mode_switch)
-			{
-				is_mode_switch = true;
-				is_fullscreen = !is_fullscreen;
-				set_mode();
-			}
-		}
-		else
-		{
-			is_mode_switch = false;
-		}
-
-
 		draw();
         glfwPollEvents();
     }
 }
 
-int main()
+int main(int argc, char *argv[])
 {
-	TMyApp app;
-	app.run();
+	int res;
+	
+    _setmode(_fileno(stdout), _O_U16TEXT);
+    _setmode(_fileno(stderr), _O_U16TEXT);
+
+	try
+	{
+		TMyApp app(argc, argv);
+		app.run();
+		res = 0;
+	}
+	catch(exception& )
+	{
+		res = 1;
+	}
+
+	return res;
 }
