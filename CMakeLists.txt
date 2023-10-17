@@ -8,7 +8,8 @@ include_directories(glfw/include)
 include_directories(glm)
 include_directories(glad/include)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -Wall -Wextra -std=c++11")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -Wall -Wextra -std=c++11")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Wall -Wextra -std=c++11 -mwindows")
 
 set(SOURCE_FILES main.cpp glad/src/glad.c)
 add_executable(alphawater ${SOURCE_FILES})
