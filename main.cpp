@@ -57,7 +57,7 @@ void mainImage(out vec4 o, vec2 u)
     o *= 0.;
     vec3 q, p, s;
     vec2 R = iResolution.xy;
-    float t = fTime;
+    float t = mod(fTime, 251.328);
     float d = 2.5;
     float r;
     for(; z < 7.; z++ )
@@ -215,7 +215,8 @@ void TMyApp::on_mouse_btn(GLFWwindow* wnd, __attribute__((unused)) int button, _
 void TMyApp::draw(void)
 {
 	float now = glfwGetTime();
-	float delta = 0.001;//now - lastTime;
+	//float delta = 0.001;//now - lastTime;
+	float delta = now - lastTime;
 
 	lastTime = now;
 	f_time += delta;
