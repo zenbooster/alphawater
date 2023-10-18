@@ -74,7 +74,6 @@ void mainImage(out vec4 o, vec2 u)
 
 void main() {
     vec4 color;
-    //mainImage(color, fragmentTexCoord);
 	mainImage(color, texCoord);
     fragColor = color;
 })";
@@ -216,15 +215,15 @@ void TMyApp::on_mouse_btn(GLFWwindow* wnd, __attribute__((unused)) int button, _
 void TMyApp::draw(void)
 {
 	float now = glfwGetTime();
-	float delta = now - lastTime;
+	float delta = 0.001;//now - lastTime;
 
 	lastTime = now;
 	f_time += delta;
 
 	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
 
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT);
+	//glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	//glClear(GL_COLOR_BUFFER_BIT);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glUseProgram(shaderProgram);
