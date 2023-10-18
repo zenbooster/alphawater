@@ -1,5 +1,6 @@
-//#include <windows.h>
-//#include <scrnsave.h>
+#include <limits>
+#include <lib/fstrcmp.h>
+
 #include <iostream>
 #include <io.h>
 #include <fcntl.h>
@@ -214,6 +215,14 @@ void TMyApp::on_mouse_btn(GLFWwindow* wnd, __attribute__((unused)) int button, _
 
 void TMyApp::draw(void)
 {
+	static size_t sz = 200 * 200 * 4;
+	static uint8_t *p_first = new uint8_t[sz];
+	static uint8_t *p_next = new uint8_t[sz];
+	static bool is_first = true;
+	static int i_first = 10000;
+	static int res = std::numeric_limits<int>::max();
+	//static float f_old_time = f_time;
+	static double res2 = 0.0;
 	float now = glfwGetTime();
 	float delta = 0.001;//now - lastTime;
 
@@ -230,6 +239,63 @@ void TMyApp::draw(void)
 	glUniform1f(glGetUniformLocation(shaderProgram, "fTime"), f_time); 
 	glBindVertexArray(VAO);
 	glDrawArrays(GL_TRIANGLES, 0, 6);
+	
+	cout << "HIT.1" << endl;
+	
+	if (is_first)
+	{
+		glReadPixels(0, 0, 200, 200, GL_RGBA, GL_UNSIGNED_BYTE, p_first);
+		is_first = false;
+		//f_time = 63.8;
+		f_time = 252.0;
+		delta = 0.0000001;
+	}
+	/*else
+	if(i_first)
+	{
+		i_first--;
+	}*/
+	else
+	{
+		glReadPixels(0, 0, 200, 200, GL_RGBA, GL_UNSIGNED_BYTE, p_next);
+		int r = abs(memcmp(p_first, p_next, sz));
+
+		if (r < res)
+		{
+			wcout << L"r = " << r << L"; res = " << res << L"; f_time = " << f_time << endl;
+			res = r;
+			if(!r)
+			{
+				glfwSetWindowShouldClose(wnd, true);
+			}
+		}
+		
+		/*if (f_time - f_old_time > 10)
+		{
+			f_old_time = f_time;
+			wcout << L"f_time = " << f_time << endl;
+		}*/
+
+		int ofs = 99 * 200;
+		int r2 = fmemcmpi(p_first+ofs, 200*2*4, p_next+ofs, 200*2*4);
+		if (r2 > res2)
+		{
+			wcout << L"r2 = " << r2 << L"; res2 = " << res2 << L"; f_time = " << f_time;
+			if (r2 == FSTRCMP_IDENTICAL)
+			{
+				wcout << L" IDENTICAL !";
+				glfwSetWindowShouldClose(wnd, true);
+			}
+			else
+			if (r2 > FSTRCMP_THRESHOLD)
+			{
+				wcout << L" SIMILAR !";
+			}
+			wcout << endl;
+
+			res2 = r2;
+		}
+	}
 
 	glfwSwapBuffers(wnd);
 }
@@ -431,7 +497,7 @@ TMyApp::TMyApp(int argc, char *argv[])
 			}
 			else
 			{
-				//show_usage();
+				show_usage();
 				throw exception();
 			}
 			break;
@@ -449,7 +515,7 @@ TMyApp::TMyApp(int argc, char *argv[])
 			}
 			else
 			{
-				//show_usage();
+				show_usage();
 				throw exception();
 			}
 			break;
@@ -483,6 +549,8 @@ int main(int argc, char *argv[])
 	
     _setmode(_fileno(stdout), _O_U16TEXT);
     _setmode(_fileno(stderr), _O_U16TEXT);
+	
+	wcout << L"HIT.0" << endl;
 
 	try
 	{

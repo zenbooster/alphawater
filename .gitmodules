@@ -8,3 +8,6 @@
 	path = glad
 	url = https://github.com/Dav1dde/glad.git
         branch = master
+[submodule "fstrcmp"]
+	path = fstrcmp
+	url = https://github.com/deepin-community/fstrcmp.git
