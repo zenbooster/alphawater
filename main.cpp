@@ -332,25 +332,22 @@ void TMyApp::draw(void)
 	lastTime = now;
 	f_time += delta;
 
-	int status = SDL_GL_MakeCurrent(wnd, ctx);
+	/*int status = SDL_GL_MakeCurrent(wnd, ctx);
 	if (status)
 	{
 		SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "SDL_GL_MakeCurrent(): %s\n", SDL_GetError());
 		exit(-1);
-	}
+	}*/
+
 	//
+	//GL_CHECK(gles2_ctx.glUseProgram(data.shader_program));
 	//GL_CHECK(gles2_ctx.glUniform1f(data.attr_fTime, f_time));
-	//gles2_ctx.glBindVertexArray(VAO);
-	//gles2_ctx.glDrawArrays(GL_TRIANGLES, 0, 6);
+	gles2_ctx.glBindVertexArray(VAO);
+	gles2_ctx.glDrawArrays(GL_TRIANGLES, 0, 6);
 	//
 	SDL_GL_SwapWindow(wnd);
-	SDL_GL_MakeCurrent(wnd, NULL);
-	/*//glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-
-	//glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-	//glClear(GL_COLOR_BUFFER_BIT);
-
-	//glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	//SDL_GL_MakeCurrent(wnd, NULL);
+	/*
 	glUseProgram(shaderProgram);
 	glUniform1f(glGetUniformLocation(shaderProgram, "fTime"), f_time); 
 	glBindVertexArray(VAO);
@@ -382,6 +379,15 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 		SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "Не могу инициализировать видео драйвер: %s\n", SDL_GetError());
 		exit(-1);
 	}
+	
+	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
+	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+	
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
 
 	const char caption[] = "alphawater";	
 
@@ -437,33 +443,38 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 	//gles2_ctx.glViewport(0, 0, width, height);
 
 	////////
-    gles2_ctx.glGenVertexArrays(1, &VAO);
-    gles2_ctx.glBindVertexArray(VAO);
+	SDL_Log("HIT.1: gles2_ctx.glGenVertexArrays = %p\n", gles2_ctx.glGenVertexArrays);
+	SDL_Log("HIT.2: gles2_ctx.glGenBuffers = %p\n", gles2_ctx.glGenBuffers);
+    GL_CHECK(gles2_ctx.glGenVertexArrays(1, &VAO));
+	SDL_Log("HIT.3\n");	
+    GL_CHECK(gles2_ctx.glBindVertexArray(VAO));
 
     GLuint VBO;
-    gles2_ctx.glGenBuffers(1, &VBO);
-    gles2_ctx.glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    gles2_ctx.glBufferData(GL_ARRAY_BUFFER, sizeof(quadVerts), quadVerts, GL_STATIC_DRAW);
+    GL_CHECK(gles2_ctx.glGenBuffers(1, &VBO));
+    GL_CHECK(gles2_ctx.glBindBuffer(GL_ARRAY_BUFFER, VBO));
+    GL_CHECK(gles2_ctx.glBufferData(GL_ARRAY_BUFFER, sizeof(quadVerts), quadVerts, GL_STATIC_DRAW));
 
-    gles2_ctx.glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<void*>(0));
-    gles2_ctx.glEnableVertexAttribArray(0);
+    GL_CHECK(gles2_ctx.glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<void*>(0)));
+    GL_CHECK(gles2_ctx.glEnableVertexAttribArray(0));
 
-    gles2_ctx.glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<void*>(2 * sizeof(float)));
-    gles2_ctx.glEnableVertexAttribArray(1);
+    GL_CHECK(gles2_ctx.glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<void*>(2 * sizeof(float))));
+    GL_CHECK(gles2_ctx.glEnableVertexAttribArray(1));
 
-    gles2_ctx.glBindVertexArray(0);
+    GL_CHECK(gles2_ctx.glBindVertexArray(0));
 
-    gles2_ctx.glGenFramebuffers(1, &framebuffer);
-    gles2_ctx.glBindFramebuffer(GL_FRAMEBUFFER, framebuffer); 
+    GL_CHECK(gles2_ctx.glGenFramebuffers(1, &framebuffer));
+    GL_CHECK(gles2_ctx.glBindFramebuffer(GL_FRAMEBUFFER, framebuffer)); 
 
     GLuint texColor;
-    gles2_ctx.glGenTextures(1, &texColor);
-    gles2_ctx.glBindTexture(GL_TEXTURE_2D, texColor);
-    gles2_ctx.glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
-    gles2_ctx.glBindTexture(GL_TEXTURE_2D, 0);
-    gles2_ctx.glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texColor, 0);
+    GL_CHECK(gles2_ctx.glGenTextures(1, &texColor));
+    GL_CHECK(gles2_ctx.glBindTexture(GL_TEXTURE_2D, texColor));
+    GL_CHECK(gles2_ctx.glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0));
+    GL_CHECK(gles2_ctx.glBindTexture(GL_TEXTURE_2D, 0));
+    GL_CHECK(gles2_ctx.glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texColor, 0));
 
-    gles2_ctx.glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    GL_CHECK(gles2_ctx.glBindFramebuffer(GL_FRAMEBUFFER, 0));
+	
+
 	////////
 
 	data.angle_x = 0;
@@ -480,17 +491,17 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
     data.attr_iResolution = GL_CHECK(gles2_ctx.glGetUniformLocation(data.shader_program, "iResolution"));
     data.attr_fTime = GL_CHECK(gles2_ctx.glGetUniformLocation(data.shader_program, "fTime"));
 
-	GL_CHECK(gles2_ctx.glUseProgram(data.shader_program));
+	//GL_CHECK(gles2_ctx.glUseProgram(data.shader_program));
 
 	//GL_CHECK(gles2_ctx.glUniform2fv(data.attr_iResolution, 1, &screen[0]));
-	GL_CHECK(gles2_ctx.glUniform2fv(data.attr_iResolution, 1, screen));
+	//GL_CHECK(gles2_ctx.glUniform2fv(data.attr_iResolution, 1, screen));
 
-	SDL_GL_MakeCurrent(wnd, NULL);
+	//SDL_GL_MakeCurrent(wnd, NULL);
 /*    glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
+    //glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+	//glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
 
 	if(!is_visible)
 	{
