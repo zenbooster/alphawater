@@ -1,20 +1,16 @@
-//#include <windows.h>
-//#include <scrnsave.h>
 #include <iostream>
 #include <io.h>
 #include <fcntl.h>
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
+//#include <glad/glad.h>
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_opengl.h>
 
-#define GLFW_EXPOSE_NATIVE_WIN32
-#include <GLFW/glfw3native.h>
-
-#pragma GCC diagnostic push
+/*#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wexpansion-to-defined"
 #include <glm/glm.hpp>
 #pragma GCC diagnostic pop
 
-#include <GL/gl.h>
+#include <GL/gl.h>*/
 
 using namespace std;
 
@@ -78,34 +74,149 @@ void main() {
     fragColor = color;
 })";
 
+typedef struct GLES2_Context
+{
+#define SDL_PROC(ret, func, params) ret (APIENTRY *func) params;
+#include "../src/render/opengles2/SDL_gles2funcs.h"
+SDL_PROC(void, glUniform1f, (GLint, GLfloat))
+SDL_PROC(void, glBindVertexArray, (GLuint))
+SDL_PROC(void, glUniform2fv, (GLint, GLsizei, const GLfloat *))
+SDL_PROC(void, glGenVertexArrays, (GLsizei, GLuint *))
+#undef SDL_PROC
+} GLES2_Context;
+
+static int LoadContext(GLES2_Context *data)
+{
+#ifdef SDL_VIDEO_DRIVER_UIKIT
+#define __SDL_NOGETPROCADDR__
+#elif defined(SDL_VIDEO_DRIVER_ANDROID)
+#define __SDL_NOGETPROCADDR__
+#endif
+
+#if defined __SDL_NOGETPROCADDR__
+#define SDL_PROC(ret, func, params) data->func = func;
+#else
+#define SDL_PROC(ret, func, params)                                                            \
+    do {                                                                                       \
+        data->func = (ret (APIENTRY *) params)SDL_GL_GetProcAddress(#func);                    \
+        if (!data->func) {                                                                     \
+            return SDL_SetError("Couldn't load GLES2 function %s: %s", #func, SDL_GetError()); \
+        }                                                                                      \
+    } while (0);
+#endif /* __SDL_NOGETPROCADDR__ */
+
+#include "../src/render/opengles2/SDL_gles2funcs.h"
+#undef SDL_PROC
+    return 0;
+}
+
+typedef struct shader_data
+{
+    GLuint shader_program, shader_frag, shader_vert;
+
+    GLint attr_position;
+    //GLint attr_color, attr_mvp;
+	GLint attr_iResolution, attr_fTime;
+
+    int angle_x, angle_y, angle_z;
+
+    GLuint position_buffer;
+    GLuint color_buffer;
+} shader_data;
+
+GLES2_Context gles2_ctx;
+
+#define GL_CHECK(x)                                                                         \
+    x;                                                                                      \
+    {                                                                                       \
+        GLenum glError = gles2_ctx.glGetError();                                                  \
+        if (glError != GL_NO_ERROR) {                                                       \
+            SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "glGetError() = %i (0x%.8x) at line %i\n", glError, glError, __LINE__); \
+            exit(-1);                                                                        \
+        }                                                                                   \
+    }
+
+static void
+process_shader(GLuint *shader, const char *source, GLint shader_type)
+{
+    GLint status = GL_FALSE;
+    const char *shaders[1] = { NULL };
+    char buffer[1024];
+    GLsizei length = 0;
+
+    /* Create shader and load into GL. */
+    *shader = GL_CHECK(gles2_ctx.glCreateShader(shader_type));
+
+    shaders[0] = source;
+
+    GL_CHECK(gles2_ctx.glShaderSource(*shader, 1, shaders, NULL));
+
+    /* Clean up shader source. */
+    shaders[0] = NULL;
+
+    /* Try compiling the shader. */
+    GL_CHECK(gles2_ctx.glCompileShader(*shader));
+    GL_CHECK(gles2_ctx.glGetShaderiv(*shader, GL_COMPILE_STATUS, &status));
+
+    /* Dump debug info (source and log) if compilation failed. */
+    if (status != GL_TRUE) {
+        gles2_ctx.glGetShaderInfoLog(*shader, sizeof(buffer), &length, &buffer[0]);
+        buffer[length] = '\0';
+        SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "Shader compilation failed: %s", buffer);
+        exit(-1);
+    }
+}
+
+static void
+link_program(struct shader_data *data)
+{
+    GLint status = GL_FALSE;
+    char buffer[1024];
+    GLsizei length = 0;
+
+    GL_CHECK(gles2_ctx.glAttachShader(data->shader_program, data->shader_vert));
+    GL_CHECK(gles2_ctx.glAttachShader(data->shader_program, data->shader_frag));
+    GL_CHECK(gles2_ctx.glLinkProgram(data->shader_program));
+    GL_CHECK(gles2_ctx.glGetProgramiv(data->shader_program, GL_LINK_STATUS, &status));
+
+    if (status != GL_TRUE) {
+        gles2_ctx.glGetProgramInfoLog(data->shader_program, sizeof(buffer), &length, &buffer[0]);
+        buffer[length] = '\0';
+        SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "Program linking failed: %s", buffer);
+        exit(-1);
+    }
+}
+
 class TMyApp
 {
 	private:
 		static float quadVerts[];
+		bool is_running;
 	    bool is_fullscreen;
 		bool is_screensaver;
-		GLFWmonitor* mon;
+		//GLFWmonitor* mon;
 		int wnd_pos[2], wnd_size[2];
 		
 		GLuint framebuffer;
-		unsigned int shaderProgram;
+		//unsigned int shaderProgram;
 		GLuint VAO;
-		GLFWwindow* wnd;
+		SDL_Window* wnd;
+		SDL_GLContext ctx;
+		shader_data data;
 		float f_time;
 		float lastTime;
 
-		void set_mode(void);
-		void on_size(GLFWwindow* wnd, int width, int height);
-		void on_key(GLFWwindow* wnd, int key, int scancode, int action, int mods);
-		void on_mouse_pos(GLFWwindow* wnd, double xpos, double ypos);
-		void on_mouse_btn(GLFWwindow* wnd, int button, int action, int mods);
+		//void set_mode(void);
+		//void on_size(GLFWwindow* wnd, int width, int height);
+		//void on_key(GLFWwindow* wnd, int key, int scancode, int action, int mods);
+		//void on_mouse_pos(GLFWwindow* wnd, double xpos, double ypos);
+		//void on_mouse_btn(GLFWwindow* wnd, int button, int action, int mods);
 		void draw(void);
 		inline bool is_preview(void) const;
 		void init(bool is_screensaver, bool is_fullscreen, bool is_visible);
 		void show_usage(void);
 
 	public:
-		//TMyApp(bool is_visible = true);
 		TMyApp(int argc, char *argv[]);
 		~TMyApp();
 		
@@ -122,7 +233,7 @@ float TMyApp::quadVerts[] = {
 	1.0, 1.0,       1.0, 1.0
 };
 
-void TMyApp::set_mode(void)
+/*void TMyApp::set_mode(void)
 {
     if (is_fullscreen)
     {
@@ -145,9 +256,9 @@ void TMyApp::set_mode(void)
 
 		glfwSetInputMode(wnd, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
     }
-}
+}*/
 
-void TMyApp::on_size(__attribute__((unused)) GLFWwindow* wnd, int width, int height)
+/*void TMyApp::on_size(__attribute__((unused)) GLFWwindow* wnd, int width, int height)
 {
     glViewport(0, 0, width, height);
     draw();
@@ -210,18 +321,31 @@ void TMyApp::on_mouse_btn(GLFWwindow* wnd, __attribute__((unused)) int button, _
 	{
 		glfwSetWindowShouldClose(wnd, true);
 	}
-}
+}*/
 
 void TMyApp::draw(void)
 {
-	float now = glfwGetTime();
+	float now = SDL_GetTicks();;
 	//float delta = 0.001;//now - lastTime;
 	float delta = now - lastTime;
 
 	lastTime = now;
 	f_time += delta;
 
-	//glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+	int status = SDL_GL_MakeCurrent(wnd, ctx);
+	if (status)
+	{
+		SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "SDL_GL_MakeCurrent(): %s\n", SDL_GetError());
+		exit(-1);
+	}
+	//
+	//GL_CHECK(gles2_ctx.glUniform1f(data.attr_fTime, f_time));
+	//gles2_ctx.glBindVertexArray(VAO);
+	//gles2_ctx.glDrawArrays(GL_TRIANGLES, 0, 6);
+	//
+	SDL_GL_SwapWindow(wnd);
+	SDL_GL_MakeCurrent(wnd, NULL);
+	/*//glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
 
 	//glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	//glClear(GL_COLOR_BUFFER_BIT);
@@ -232,7 +356,7 @@ void TMyApp::draw(void)
 	glBindVertexArray(VAO);
 	glDrawArrays(GL_TRIANGLES, 0, 6);
 
-	glfwSwapBuffers(wnd);
+	glfwSwapBuffers(wnd);*/
 }
 
 inline bool TMyApp::is_preview(void) const
@@ -245,14 +369,124 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
     int width;
     int height;
 	
+	is_running = true;
 	this->is_screensaver = is_screensaver;
 	this->is_fullscreen = is_fullscreen;
 
-	glm::vec2 screen(1, 1);
+	GLfloat screen[2] = {1, 1};
 
 	f_time = 1.0f;
 
-    glfwInit();
+	if (SDL_InitSubSystem(SDL_INIT_VIDEO) < 0)
+	{
+		SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "Не могу инициализировать видео драйвер: %s\n", SDL_GetError());
+		exit(-1);
+	}
+
+	const char caption[] = "alphawater";	
+
+	if (is_fullscreen)
+	{
+	}
+	else
+	{
+		width = 200;
+		height = 200;
+
+		wnd = SDL_CreateWindow(
+			caption,
+			width, height,
+			SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE
+		);
+		
+		if (!wnd)
+		{
+			SDL_LogError(SDL_LOG_CATEGORY_SYSTEM, "Не могу создать окно: %s\n", SDL_GetError());
+			exit(-1);
+		}
+	}
+	
+	ctx = SDL_GL_CreateContext(wnd);
+	if (!ctx)
+	{
+		SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "Не могу создать контекст: %s\n", SDL_GetError());
+		exit(-1);
+	}
+	
+	if (LoadContext(&gles2_ctx) < 0)
+	{
+        SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "Не могу загрузить GLES2 функции.\n");
+        exit(-1);
+    }
+	
+	int render_flags = SDL_RENDERER_PRESENTVSYNC;
+
+    if (render_flags & SDL_RENDERER_PRESENTVSYNC) {
+        SDL_GL_SetSwapInterval(1);
+    } else {
+        SDL_GL_SetSwapInterval(0);
+    }
+
+	int status = SDL_GL_MakeCurrent(wnd, ctx);
+	if (status)
+	{
+		SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "SDL_GL_MakeCurrent(): %s\n", SDL_GetError());
+		exit(-1);
+	}
+
+	//gles2_ctx.glViewport(0, 0, width, height);
+
+	////////
+    gles2_ctx.glGenVertexArrays(1, &VAO);
+    gles2_ctx.glBindVertexArray(VAO);
+
+    GLuint VBO;
+    gles2_ctx.glGenBuffers(1, &VBO);
+    gles2_ctx.glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    gles2_ctx.glBufferData(GL_ARRAY_BUFFER, sizeof(quadVerts), quadVerts, GL_STATIC_DRAW);
+
+    gles2_ctx.glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<void*>(0));
+    gles2_ctx.glEnableVertexAttribArray(0);
+
+    gles2_ctx.glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<void*>(2 * sizeof(float)));
+    gles2_ctx.glEnableVertexAttribArray(1);
+
+    gles2_ctx.glBindVertexArray(0);
+
+    gles2_ctx.glGenFramebuffers(1, &framebuffer);
+    gles2_ctx.glBindFramebuffer(GL_FRAMEBUFFER, framebuffer); 
+
+    GLuint texColor;
+    gles2_ctx.glGenTextures(1, &texColor);
+    gles2_ctx.glBindTexture(GL_TEXTURE_2D, texColor);
+    gles2_ctx.glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+    gles2_ctx.glBindTexture(GL_TEXTURE_2D, 0);
+    gles2_ctx.glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texColor, 0);
+
+    gles2_ctx.glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	////////
+
+	data.angle_x = 0;
+	data.angle_y = 0;
+	data.angle_z = 0;
+
+	process_shader(&data.shader_vert, vertexShaderSource, GL_VERTEX_SHADER);
+	process_shader(&data.shader_frag, fragmentShaderSource, GL_FRAGMENT_SHADER);
+	
+	data.shader_program = GL_CHECK(gles2_ctx.glCreateProgram());
+
+	link_program(&data);
+	
+    data.attr_iResolution = GL_CHECK(gles2_ctx.glGetUniformLocation(data.shader_program, "iResolution"));
+    data.attr_fTime = GL_CHECK(gles2_ctx.glGetUniformLocation(data.shader_program, "fTime"));
+
+	GL_CHECK(gles2_ctx.glUseProgram(data.shader_program));
+
+	//GL_CHECK(gles2_ctx.glUniform2fv(data.attr_iResolution, 1, &screen[0]));
+	GL_CHECK(gles2_ctx.glUniform2fv(data.attr_iResolution, 1, screen));
+
+	SDL_GL_MakeCurrent(wnd, NULL);
+/*    glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
@@ -396,8 +630,9 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 
     glUseProgram(shaderProgram);
 	glUniform2fv(glGetUniformLocation(shaderProgram, "iResolution"), 1, &screen[0]);
+	*/
 
-    lastTime = glfwGetTime();
+    lastTime = SDL_GetTicks();
 }
 
 void TMyApp::show_usage(void)
@@ -423,12 +658,13 @@ TMyApp::TMyApp(int argc, char *argv[])
 
 				char *s_ptr = argv[2];
 				HWND h_wnd_parent = (HWND)stoull(s_ptr, nullptr, 10);
-				HWND h_wnd = glfwGetWin32Window(wnd);
+				/*HWND h_wnd = glfwGetWin32Window(wnd);
 				SetParent(h_wnd, h_wnd_parent);
 				SetWindowLong(h_wnd, GWL_STYLE, WS_VISIBLE | WS_CHILD | WS_CLIPCHILDREN);
 				RECT rc;
 				GetClientRect(h_wnd_parent, &rc);
 				MoveWindow(h_wnd, rc.left, rc.top, rc.right, rc.bottom, TRUE);
+				*/
 			}
 			else
 			{
@@ -465,26 +701,33 @@ TMyApp::TMyApp(int argc, char *argv[])
 
 TMyApp::~TMyApp()
 {
-    glfwTerminate();
+	SDL_DestroyWindow(wnd);
+    //glfwTerminate();
     // cleanup
 }
 
 void TMyApp::run(void)
 {
-    while (!glfwWindowShouldClose(wnd))
-    {
-		draw();
-        glfwPollEvents();
-    }
+	SDL_Event e;
+
+	while (is_running)
+	{
+		while (SDL_PollEvent(&e))
+		{
+			draw();
+
+			if (e.type == SDL_EVENT_QUIT)
+			{
+				is_running = false;
+			}
+		}
+	}
 }
 
 int main(int argc, char *argv[])
 {
 	int res;
 	
-    _setmode(_fileno(stdout), _O_U16TEXT);
-    _setmode(_fileno(stderr), _O_U16TEXT);
-
 	try
 	{
 		TMyApp app(argc, argv);
