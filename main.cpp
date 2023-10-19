@@ -77,11 +77,13 @@ void main() {
 typedef struct GLES2_Context
 {
 #define SDL_PROC(ret, func, params) ret (APIENTRY *func) params;
-#include "../src/render/opengles2/SDL_gles2funcs.h"
+#include "SDL_gles2funcs.h"
+/*#include "../src/render/opengles2/SDL_gles2funcs.h"
 SDL_PROC(void, glUniform1f, (GLint, GLfloat))
 SDL_PROC(void, glBindVertexArray, (GLuint))
 SDL_PROC(void, glUniform2fv, (GLint, GLsizei, const GLfloat *))
 SDL_PROC(void, glGenVertexArrays, (GLsizei, GLuint *))
+*/
 #undef SDL_PROC
 } GLES2_Context;
 
@@ -105,7 +107,8 @@ static int LoadContext(GLES2_Context *data)
     } while (0);
 #endif /* __SDL_NOGETPROCADDR__ */
 
-#include "../src/render/opengles2/SDL_gles2funcs.h"
+//#include "../src/render/opengles2/SDL_gles2funcs.h"
+#include "SDL_gles2funcs.h"
 #undef SDL_PROC
     return 0;
 }
@@ -325,7 +328,7 @@ void TMyApp::on_mouse_btn(GLFWwindow* wnd, __attribute__((unused)) int button, _
 
 void TMyApp::draw(void)
 {
-	float now = SDL_GetTicks();;
+	float now = SDL_GetTicks() * 0.001;
 	//float delta = 0.001;//now - lastTime;
 	float delta = now - lastTime;
 
@@ -341,7 +344,7 @@ void TMyApp::draw(void)
 
 	//
 	//GL_CHECK(gles2_ctx.glUseProgram(data.shader_program));
-	//GL_CHECK(gles2_ctx.glUniform1f(data.attr_fTime, f_time));
+	GL_CHECK(gles2_ctx.glUniform1f(data.attr_fTime, f_time));
 	gles2_ctx.glBindVertexArray(VAO);
 	gles2_ctx.glDrawArrays(GL_TRIANGLES, 0, 6);
 	//
@@ -491,10 +494,10 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
     data.attr_iResolution = GL_CHECK(gles2_ctx.glGetUniformLocation(data.shader_program, "iResolution"));
     data.attr_fTime = GL_CHECK(gles2_ctx.glGetUniformLocation(data.shader_program, "fTime"));
 
-	//GL_CHECK(gles2_ctx.glUseProgram(data.shader_program));
+	GL_CHECK(gles2_ctx.glUseProgram(data.shader_program));
 
 	//GL_CHECK(gles2_ctx.glUniform2fv(data.attr_iResolution, 1, &screen[0]));
-	//GL_CHECK(gles2_ctx.glUniform2fv(data.attr_iResolution, 1, screen));
+	GL_CHECK(gles2_ctx.glUniform2fv(data.attr_iResolution, 1, screen));
 
 	//SDL_GL_MakeCurrent(wnd, NULL);
 /*    glfwInit();
@@ -643,7 +646,7 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 	glUniform2fv(glGetUniformLocation(shaderProgram, "iResolution"), 1, &screen[0]);
 	*/
 
-    lastTime = SDL_GetTicks();
+    lastTime = SDL_GetTicks() * 0.001;
 }
 
 void TMyApp::show_usage(void)
@@ -723,15 +726,14 @@ void TMyApp::run(void)
 
 	while (is_running)
 	{
-		while (SDL_PollEvent(&e))
+		while (SDL_PollEvent(&e) && is_running)
 		{
-			draw();
-
 			if (e.type == SDL_EVENT_QUIT)
 			{
 				is_running = false;
 			}
 		}
+		draw();
 	}
 }
 
