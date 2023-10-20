@@ -1,16 +1,8 @@
 #include <iostream>
 #include <io.h>
 #include <fcntl.h>
-//#include <glad/glad.h>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_opengl.h>
-
-/*#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wexpansion-to-defined"
-#include <glm/glm.hpp>
-#pragma GCC diagnostic pop
-
-#include <GL/gl.h>*/
 
 using namespace std;
 
@@ -78,12 +70,6 @@ typedef struct GLES2_Context
 {
 #define SDL_PROC(ret, func, params) ret (APIENTRY *func) params;
 #include "SDL_gles2funcs.h"
-/*#include "../src/render/opengles2/SDL_gles2funcs.h"
-SDL_PROC(void, glUniform1f, (GLint, GLfloat))
-SDL_PROC(void, glBindVertexArray, (GLuint))
-SDL_PROC(void, glUniform2fv, (GLint, GLsizei, const GLfloat *))
-SDL_PROC(void, glGenVertexArrays, (GLsizei, GLuint *))
-*/
 #undef SDL_PROC
 } GLES2_Context;
 
@@ -107,7 +93,6 @@ static int LoadContext(GLES2_Context *data)
     } while (0);
 #endif /* __SDL_NOGETPROCADDR__ */
 
-//#include "../src/render/opengles2/SDL_gles2funcs.h"
 #include "SDL_gles2funcs.h"
 #undef SDL_PROC
     return 0;
@@ -329,34 +314,24 @@ void TMyApp::on_mouse_btn(GLFWwindow* wnd, __attribute__((unused)) int button, _
 void TMyApp::draw(void)
 {
 	float now = SDL_GetTicks() * 0.001;
-	//float delta = 0.001;//now - lastTime;
 	float delta = now - lastTime;
 
 	lastTime = now;
 	f_time += delta;
 
-	/*int status = SDL_GL_MakeCurrent(wnd, ctx);
+	int status = SDL_GL_MakeCurrent(wnd, ctx);
 	if (status)
 	{
 		SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "SDL_GL_MakeCurrent(): %s\n", SDL_GetError());
 		exit(-1);
-	}*/
+	}
 
-	//
-	//GL_CHECK(gles2_ctx.glUseProgram(data.shader_program));
 	GL_CHECK(gles2_ctx.glUniform1f(data.attr_fTime, f_time));
 	gles2_ctx.glBindVertexArray(VAO);
 	gles2_ctx.glDrawArrays(GL_TRIANGLES, 0, 6);
 	//
 	SDL_GL_SwapWindow(wnd);
-	//SDL_GL_MakeCurrent(wnd, NULL);
-	/*
-	glUseProgram(shaderProgram);
-	glUniform1f(glGetUniformLocation(shaderProgram, "fTime"), f_time); 
-	glBindVertexArray(VAO);
-	glDrawArrays(GL_TRIANGLES, 0, 6);
-
-	glfwSwapBuffers(wnd);*/
+	SDL_GL_MakeCurrent(wnd, NULL);
 }
 
 inline bool TMyApp::is_preview(void) const
@@ -383,15 +358,6 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 		exit(-1);
 	}
 	
-	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
-	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
-	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
-	
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
-
 	const char caption[] = "alphawater";	
 
 	if (is_fullscreen)
@@ -446,8 +412,6 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 	//gles2_ctx.glViewport(0, 0, width, height);
 
 	////////
-	SDL_Log("HIT.1: gles2_ctx.glGenVertexArrays = %p\n", gles2_ctx.glGenVertexArrays);
-	SDL_Log("HIT.2: gles2_ctx.glGenBuffers = %p\n", gles2_ctx.glGenBuffers);
     GL_CHECK(gles2_ctx.glGenVertexArrays(1, &VAO));
 	SDL_Log("HIT.3\n");	
     GL_CHECK(gles2_ctx.glBindVertexArray(VAO));
@@ -495,16 +459,10 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
     data.attr_fTime = GL_CHECK(gles2_ctx.glGetUniformLocation(data.shader_program, "fTime"));
 
 	GL_CHECK(gles2_ctx.glUseProgram(data.shader_program));
-
-	//GL_CHECK(gles2_ctx.glUniform2fv(data.attr_iResolution, 1, &screen[0]));
 	GL_CHECK(gles2_ctx.glUniform2fv(data.attr_iResolution, 1, screen));
 
-	//SDL_GL_MakeCurrent(wnd, NULL);
-/*    glfwInit();
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    //glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-	//glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
+	SDL_GL_MakeCurrent(wnd, NULL);
+/*
 
 	if(!is_visible)
 	{
@@ -591,59 +549,6 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
         wcerr << L"failed to initialize glad with processes " << endl;
         exit(-1);
     }
-
-    glGenVertexArrays(1, &VAO);
-    glBindVertexArray(VAO);
-
-    GLuint VBO;
-    glGenBuffers(1, &VBO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVerts), quadVerts, GL_STATIC_DRAW);
-
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<void*>(0));
-    glEnableVertexAttribArray(0);
-
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<void*>(2 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-
-    glBindVertexArray(0);
-
-    glGenFramebuffers(1, &framebuffer);
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer); 
-
-    GLuint texColor;
-    glGenTextures(1, &texColor);
-    glBindTexture(GL_TEXTURE_2D, texColor);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texColor, 0);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-
-    //vertex shader
-    unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
-    glCompileShader(vertexShader);
-
-    // fragment shader
-    unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
-    glCompileShader(fragmentShader);
-    // check for shader compile errors
-
-    // link shaders
-    shaderProgram = glCreateProgram();
-    glAttachShader(shaderProgram, vertexShader);
-    glAttachShader(shaderProgram, fragmentShader);
-    glLinkProgram(shaderProgram);
-    // check for linking errors
-
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
-
-    glUseProgram(shaderProgram);
-	glUniform2fv(glGetUniformLocation(shaderProgram, "iResolution"), 1, &screen[0]);
 	*/
 
     lastTime = SDL_GetTicks() * 0.001;
@@ -716,8 +621,6 @@ TMyApp::TMyApp(int argc, char *argv[])
 TMyApp::~TMyApp()
 {
 	SDL_DestroyWindow(wnd);
-    //glfwTerminate();
-    // cleanup
 }
 
 void TMyApp::run(void)
