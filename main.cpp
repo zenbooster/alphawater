@@ -195,7 +195,7 @@ class TMyApp
 		float lastTime;
 
 		//void set_mode(void);
-		//void on_size(GLFWwindow* wnd, int width, int height);
+		void on_size(void);
 		//void on_key(GLFWwindow* wnd, int key, int scancode, int action, int mods);
 		//void on_mouse_pos(GLFWwindow* wnd, double xpos, double ypos);
 		//void on_mouse_btn(GLFWwindow* wnd, int button, int action, int mods);
@@ -246,12 +246,23 @@ float TMyApp::quadVerts[] = {
     }
 }*/
 
-/*void TMyApp::on_size(__attribute__((unused)) GLFWwindow* wnd, int width, int height)
+void TMyApp::on_size(void)
 {
-    glViewport(0, 0, width, height);
-    draw();
-}
+	int w, h;
 
+	SDL_GetWindowSize(wnd, &w, &h);
+	
+	int status = SDL_GL_MakeCurrent(wnd, ctx);
+	if (status)
+	{
+		SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "SDL_GL_MakeCurrent(): %s\n", SDL_GetError());
+		exit(-1);
+	}
+
+    gles2_ctx.glViewport(0, 0, w, h);
+	SDL_GL_MakeCurrent(wnd, NULL);
+}
+/*
 void TMyApp::on_key(GLFWwindow* wnd, int key, __attribute__((unused)) int scancode, int action, int mods)
 {
 	static bool is_mode_switch = false;
@@ -358,6 +369,15 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 		exit(-1);
 	}
 	
+	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
+	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+	
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
+
 	const char caption[] = "alphawater";	
 
 	if (is_fullscreen)
@@ -413,7 +433,6 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 
 	////////
     GL_CHECK(gles2_ctx.glGenVertexArrays(1, &VAO));
-	SDL_Log("HIT.3\n");	
     GL_CHECK(gles2_ctx.glBindVertexArray(VAO));
 
     GLuint VBO;
@@ -631,9 +650,15 @@ void TMyApp::run(void)
 	{
 		while (SDL_PollEvent(&e) && is_running)
 		{
-			if (e.type == SDL_EVENT_QUIT)
+			switch (e.type)
 			{
-				is_running = false;
+				case SDL_EVENT_WINDOW_RESIZED:
+					on_size();
+					break;
+
+				case SDL_EVENT_QUIT:
+					is_running = false;
+					//break;
 			}
 		}
 		draw();
