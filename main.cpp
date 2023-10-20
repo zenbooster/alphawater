@@ -26,7 +26,7 @@ out vec4 fragColor;
 
 float M(inout vec3 s, inout vec3 q, float t)
 {
-  vec4 v = vec4(0, 33, 55,0);
+  vec4 v = vec4(0, 33, 55, 0);
   vec4 z = cos( v + t*.4);
   mat2 m0 = mat2(z.x, z.y, z.z, z.w);
   z = cos( v + t*.3);
