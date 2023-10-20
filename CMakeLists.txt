@@ -1,9 +1,11 @@
 cmake_minimum_required(VERSION 3.5)
 project(alphawater)
 
+set(SDL_TEST_LIBRARY OFF)
+set(SDL_DISABLE_INSTALL ON)
+set(SDL_DISABLE_INSTALL_DOCS ON)
+set(SDL_SHARED OFF)
 set(SDL_STATIC ON)
-
-#find_package(OpenGL REQUIRED)
 
 add_subdirectory(sdl)
 include_directories(sdl/include)
