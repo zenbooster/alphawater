@@ -104,8 +104,8 @@ public:
     void setUniformValue(int location, GLfloat x, GLfloat y, GLfloat z);
     void setUniformValue(int location, GLfloat x, GLfloat y, GLfloat z, GLfloat w);
     void setUniformValue(int location, const glm::vec2 &value);
-    /*void setUniformValue(int location, const Vector3 &value);
-    void setUniformValue(int location, const Vector4 &value);
+    void setUniformValue(int location, const glm::vec3 &value);
+    /*void setUniformValue(int location, const Vector4 &value);
     void setUniformValue(int location, const Matrix2x2 &value);
     void setUniformValue(int location, const Matrix2x3 &value);
     void setUniformValue(int location, const Matrix2x4 &value);
@@ -123,8 +123,8 @@ public:
     void setUniformValue(const char *name, GLfloat x, GLfloat y, GLfloat z);
     void setUniformValue(const char *name, GLfloat x, GLfloat y, GLfloat z, GLfloat w);
     void setUniformValue(const char *name, const glm::vec2 &value);
-    /*void setUniformValue(const char *name, const Vector3 &value);
-    void setUniformValue(const char *name, const Vector4 &value);
+    void setUniformValue(const char *name, const glm::vec3 &value);
+    /*void setUniformValue(const char *name, const Vector4 &value);
     void setUniformValue(const char *name, const Matrix2x2 &value);
     void setUniformValue(const char *name, const Matrix2x3 &value);
     void setUniformValue(const char *name, const Matrix2x4 &value);

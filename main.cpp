@@ -5,6 +5,7 @@
 #include <SDL3/SDL_opengl.h>
 #include "TGles2Fns.h"
 #include "shaderprogram.h"
+#include "shaderinput.h"
 #include "vertexarrayobject.h"
 #include "bufferobject.h"
 
@@ -24,8 +25,8 @@ void main(){
 const char *fragmentShaderSource = 
 R"(#version 330 core
 in vec2 texCoord;
-uniform vec2      iResolution;
-uniform float     fTime;
+uniform vec3      iResolution;
+uniform float     iTime;
 out vec4 fragColor;
 
 float M(inout vec3 s, inout vec3 q, float t)
@@ -49,7 +50,7 @@ void mainImage(out vec4 o, vec2 u)
     o *= 0.;
     vec3 q, p, s;
     vec2 R = iResolution.xy;
-    float t = mod(fTime, 251.328);
+    float t = mod(iTime, 251.328);
     float d = 2.5;
     float r;
     for(; z < 7.; z++ )
@@ -98,11 +99,10 @@ class TMyApp
 		SDL_GLContext ctx;
 		int render_flags;
 		ShaderProgram *p_prg;
-		glm::vec2 iResolution;
+		ShaderInput input;
 		VertexArrayObject *p_vao;
 		BufferObject *p_vbo_arr;
 		BufferObject *p_vbo_idx;
-		float f_time;
 		float lastTime;
 
 		//void set_mode(void);
@@ -174,9 +174,9 @@ void TMyApp::on_size(void)
 	}
 
     TGles2Fns::glViewport(0, 0, w, h);
-	iResolution = glm::vec2(w, h);
+	input.iResolution = glm::vec3(w, h, 1.0f);
 	p_prg->bind();
-	p_prg->setUniformValue("iResolution", iResolution);
+	p_prg->setUniformValue("iResolution", input.iResolution);
 	p_prg->release();
 	SDL_GL_MakeCurrent(wnd, NULL);
 }
@@ -246,7 +246,7 @@ void TMyApp::draw(void)
 	float delta = now - lastTime;
 
 	lastTime = now;
-	f_time += delta;
+	input.iTime += delta;
 
 	int status = SDL_GL_MakeCurrent(wnd, ctx);
 	if (status)
@@ -256,7 +256,7 @@ void TMyApp::draw(void)
 	}
 
 	p_prg->bind();
-	p_prg->setUniformValue("fTime", f_time);
+	p_prg->setUniformValue("iTime", input.iTime);
 	p_vao->bind();
 	TGles2Fns::glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 	p_vao->release();
@@ -281,7 +281,7 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 	this->is_fullscreen = is_fullscreen;
 	render_flags = SDL_RENDERER_PRESENTVSYNC;
 
-	f_time = 1.0f;
+	input.iTime = 1.0f;
 
 	if (SDL_InitSubSystem(SDL_INIT_VIDEO) < 0)
 	{
@@ -317,7 +317,7 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 		}
 	}
 	
-	iResolution = glm::vec2(width, height);
+	input.iResolution = glm::vec3(width, height, 1.0f);
 	
 	ctx = SDL_GL_CreateContext(wnd);
 	if (!ctx)
@@ -364,7 +364,7 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 	}
 	
 	p_prg->bind();
-	p_prg->setUniformValue("iResolution", iResolution);
+	p_prg->setUniformValue("iResolution", input.iResolution);
 
     p_prg->enableAttributeArray(0);
     p_prg->setAttributeBuffer(0, GL_FLOAT, 0, 3, sizeof(GLfloat) * 5);

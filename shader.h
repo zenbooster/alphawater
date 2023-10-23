@@ -1,4 +1,6 @@
-#pragma once
+#ifndef SHADER_H
+#define SHADER_H
+
 #include "common.h"
 
 enum ShaderType {
@@ -41,3 +43,4 @@ private:
     string mLog;
     string mSourceCode;
 };
+#endif

@@ -1,4 +1,5 @@
-#pragma once
+#ifndef TGLES2_FNS
+#define TGLES2_FNS
 #include "common.h"
 
 struct TGles2Fns
@@ -8,3 +9,4 @@ struct TGles2Fns
 #undef SDL_PROC
 	static void load();
 };
+#endif
