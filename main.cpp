@@ -3,6 +3,7 @@
 #include <fcntl.h>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_opengl.h>
+#include "TGles2Fns.h"
 
 using namespace std;
 
@@ -66,38 +67,6 @@ void main() {
     fragColor = color;
 })";
 
-typedef struct GLES2_Context
-{
-#define SDL_PROC(ret, func, params) ret (APIENTRY *func) params;
-#include "SDL_gles2funcs.h"
-#undef SDL_PROC
-} GLES2_Context;
-
-static int LoadContext(GLES2_Context *data)
-{
-#ifdef SDL_VIDEO_DRIVER_UIKIT
-#define __SDL_NOGETPROCADDR__
-#elif defined(SDL_VIDEO_DRIVER_ANDROID)
-#define __SDL_NOGETPROCADDR__
-#endif
-
-#if defined __SDL_NOGETPROCADDR__
-#define SDL_PROC(ret, func, params) data->func = func;
-#else
-#define SDL_PROC(ret, func, params)                                                            \
-    do {                                                                                       \
-        data->func = (ret (APIENTRY *) params)SDL_GL_GetProcAddress(#func);                    \
-        if (!data->func) {                                                                     \
-            return SDL_SetError("Couldn't load GLES2 function %s: %s", #func, SDL_GetError()); \
-        }                                                                                      \
-    } while (0);
-#endif /* __SDL_NOGETPROCADDR__ */
-
-#include "SDL_gles2funcs.h"
-#undef SDL_PROC
-    return 0;
-}
-
 typedef struct shader_data
 {
     GLuint shader_program, shader_frag, shader_vert;
@@ -106,18 +75,16 @@ typedef struct shader_data
     //GLint attr_color, attr_mvp;
 	GLint attr_iResolution, attr_fTime;
 
-    int angle_x, angle_y, angle_z;
-
     GLuint position_buffer;
     GLuint color_buffer;
 } shader_data;
 
-GLES2_Context gles2_ctx;
+//TGles2Fns p_glfns;
 
 #define GL_CHECK(x)                                                                         \
     x;                                                                                      \
     {                                                                                       \
-        GLenum glError = gles2_ctx.glGetError();                                                  \
+        GLenum glError = TGles2Fns::glGetError();                                                  \
         if (glError != GL_NO_ERROR) {                                                       \
             SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "glGetError() = %i (0x%.8x) at line %i\n", glError, glError, __LINE__); \
             exit(-1);                                                                        \
@@ -133,22 +100,22 @@ process_shader(GLuint *shader, const char *source, GLint shader_type)
     GLsizei length = 0;
 
     /* Create shader and load into GL. */
-    *shader = GL_CHECK(gles2_ctx.glCreateShader(shader_type));
+    *shader = GL_CHECK(TGles2Fns::glCreateShader(shader_type));
 
     shaders[0] = source;
 
-    GL_CHECK(gles2_ctx.glShaderSource(*shader, 1, shaders, NULL));
+    GL_CHECK(TGles2Fns::glShaderSource(*shader, 1, shaders, NULL));
 
     /* Clean up shader source. */
     shaders[0] = NULL;
 
     /* Try compiling the shader. */
-    GL_CHECK(gles2_ctx.glCompileShader(*shader));
-    GL_CHECK(gles2_ctx.glGetShaderiv(*shader, GL_COMPILE_STATUS, &status));
+    GL_CHECK(TGles2Fns::glCompileShader(*shader));
+    GL_CHECK(TGles2Fns::glGetShaderiv(*shader, GL_COMPILE_STATUS, &status));
 
     /* Dump debug info (source and log) if compilation failed. */
     if (status != GL_TRUE) {
-        gles2_ctx.glGetShaderInfoLog(*shader, sizeof(buffer), &length, &buffer[0]);
+        TGles2Fns::glGetShaderInfoLog(*shader, sizeof(buffer), &length, &buffer[0]);
         buffer[length] = '\0';
         SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "Shader compilation failed: %s", buffer);
         exit(-1);
@@ -162,13 +129,13 @@ link_program(struct shader_data *data)
     char buffer[1024];
     GLsizei length = 0;
 
-    GL_CHECK(gles2_ctx.glAttachShader(data->shader_program, data->shader_vert));
-    GL_CHECK(gles2_ctx.glAttachShader(data->shader_program, data->shader_frag));
-    GL_CHECK(gles2_ctx.glLinkProgram(data->shader_program));
-    GL_CHECK(gles2_ctx.glGetProgramiv(data->shader_program, GL_LINK_STATUS, &status));
+    GL_CHECK(TGles2Fns::glAttachShader(data->shader_program, data->shader_vert));
+    GL_CHECK(TGles2Fns::glAttachShader(data->shader_program, data->shader_frag));
+    GL_CHECK(TGles2Fns::glLinkProgram(data->shader_program));
+    GL_CHECK(TGles2Fns::glGetProgramiv(data->shader_program, GL_LINK_STATUS, &status));
 
     if (status != GL_TRUE) {
-        gles2_ctx.glGetProgramInfoLog(data->shader_program, sizeof(buffer), &length, &buffer[0]);
+        TGles2Fns::glGetProgramInfoLog(data->shader_program, sizeof(buffer), &length, &buffer[0]);
         buffer[length] = '\0';
         SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "Program linking failed: %s", buffer);
         exit(-1);
@@ -190,6 +157,7 @@ class TMyApp
 		GLuint VAO;
 		SDL_Window* wnd;
 		SDL_GLContext ctx;
+		int render_flags;
 		shader_data data;
 		float f_time;
 		float lastTime;
@@ -259,7 +227,7 @@ void TMyApp::on_size(void)
 		exit(-1);
 	}
 
-    gles2_ctx.glViewport(0, 0, w, h);
+    TGles2Fns::glViewport(0, 0, w, h);
 	SDL_GL_MakeCurrent(wnd, NULL);
 }
 /*
@@ -337,9 +305,9 @@ void TMyApp::draw(void)
 		exit(-1);
 	}
 
-	GL_CHECK(gles2_ctx.glUniform1f(data.attr_fTime, f_time));
-	gles2_ctx.glBindVertexArray(VAO);
-	gles2_ctx.glDrawArrays(GL_TRIANGLES, 0, 6);
+	GL_CHECK(TGles2Fns::glUniform1f(data.attr_fTime, f_time));
+	TGles2Fns::glBindVertexArray(VAO);
+	TGles2Fns::glDrawArrays(GL_TRIANGLES, 0, 6);
 	//
 	SDL_GL_SwapWindow(wnd);
 	SDL_GL_MakeCurrent(wnd, NULL);
@@ -358,6 +326,7 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 	is_running = true;
 	this->is_screensaver = is_screensaver;
 	this->is_fullscreen = is_fullscreen;
+	render_flags = SDL_RENDERER_PRESENTVSYNC;
 
 	GLfloat screen[2] = {1, 1};
 
@@ -369,14 +338,10 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 		exit(-1);
 	}
 	
-	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
-	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
-	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
-	
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
 
 	const char caption[] = "alphawater";	
 
@@ -408,14 +373,8 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 		exit(-1);
 	}
 	
-	if (LoadContext(&gles2_ctx) < 0)
-	{
-        SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "Не могу загрузить GLES2 функции.\n");
-        exit(-1);
-    }
+	TGles2Fns::load();
 	
-	int render_flags = SDL_RENDERER_PRESENTVSYNC;
-
     if (render_flags & SDL_RENDERER_PRESENTVSYNC) {
         SDL_GL_SetSwapInterval(1);
     } else {
@@ -429,56 +388,51 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 		exit(-1);
 	}
 
-	//gles2_ctx.glViewport(0, 0, width, height);
+	//TGles2Fns::glViewport(0, 0, width, height);
 
 	////////
-    GL_CHECK(gles2_ctx.glGenVertexArrays(1, &VAO));
-    GL_CHECK(gles2_ctx.glBindVertexArray(VAO));
+    GL_CHECK(TGles2Fns::glGenVertexArrays(1, &VAO));
+    GL_CHECK(TGles2Fns::glBindVertexArray(VAO));
 
     GLuint VBO;
-    GL_CHECK(gles2_ctx.glGenBuffers(1, &VBO));
-    GL_CHECK(gles2_ctx.glBindBuffer(GL_ARRAY_BUFFER, VBO));
-    GL_CHECK(gles2_ctx.glBufferData(GL_ARRAY_BUFFER, sizeof(quadVerts), quadVerts, GL_STATIC_DRAW));
+    GL_CHECK(TGles2Fns::glGenBuffers(1, &VBO));
+    GL_CHECK(TGles2Fns::glBindBuffer(GL_ARRAY_BUFFER, VBO));
+    GL_CHECK(TGles2Fns::glBufferData(GL_ARRAY_BUFFER, sizeof(quadVerts), quadVerts, GL_STATIC_DRAW));
 
-    GL_CHECK(gles2_ctx.glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<void*>(0)));
-    GL_CHECK(gles2_ctx.glEnableVertexAttribArray(0));
+    GL_CHECK(TGles2Fns::glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<void*>(0)));
+    GL_CHECK(TGles2Fns::glEnableVertexAttribArray(0));
 
-    GL_CHECK(gles2_ctx.glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<void*>(2 * sizeof(float))));
-    GL_CHECK(gles2_ctx.glEnableVertexAttribArray(1));
+    GL_CHECK(TGles2Fns::glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<void*>(2 * sizeof(float))));
+    GL_CHECK(TGles2Fns::glEnableVertexAttribArray(1));
 
-    GL_CHECK(gles2_ctx.glBindVertexArray(0));
+    GL_CHECK(TGles2Fns::glBindVertexArray(0));
 
-    GL_CHECK(gles2_ctx.glGenFramebuffers(1, &framebuffer));
-    GL_CHECK(gles2_ctx.glBindFramebuffer(GL_FRAMEBUFFER, framebuffer)); 
+    GL_CHECK(TGles2Fns::glGenFramebuffers(1, &framebuffer));
+    GL_CHECK(TGles2Fns::glBindFramebuffer(GL_FRAMEBUFFER, framebuffer)); 
 
     GLuint texColor;
-    GL_CHECK(gles2_ctx.glGenTextures(1, &texColor));
-    GL_CHECK(gles2_ctx.glBindTexture(GL_TEXTURE_2D, texColor));
-    GL_CHECK(gles2_ctx.glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0));
-    GL_CHECK(gles2_ctx.glBindTexture(GL_TEXTURE_2D, 0));
-    GL_CHECK(gles2_ctx.glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texColor, 0));
+    GL_CHECK(TGles2Fns::glGenTextures(1, &texColor));
+    GL_CHECK(TGles2Fns::glBindTexture(GL_TEXTURE_2D, texColor));
+    GL_CHECK(TGles2Fns::glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0));
+    GL_CHECK(TGles2Fns::glBindTexture(GL_TEXTURE_2D, 0));
+    GL_CHECK(TGles2Fns::glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texColor, 0));
 
-    GL_CHECK(gles2_ctx.glBindFramebuffer(GL_FRAMEBUFFER, 0));
+    GL_CHECK(TGles2Fns::glBindFramebuffer(GL_FRAMEBUFFER, 0));
 	
 
 	////////
-
-	data.angle_x = 0;
-	data.angle_y = 0;
-	data.angle_z = 0;
-
 	process_shader(&data.shader_vert, vertexShaderSource, GL_VERTEX_SHADER);
 	process_shader(&data.shader_frag, fragmentShaderSource, GL_FRAGMENT_SHADER);
 	
-	data.shader_program = GL_CHECK(gles2_ctx.glCreateProgram());
+	data.shader_program = GL_CHECK(TGles2Fns::glCreateProgram());
 
 	link_program(&data);
 	
-    data.attr_iResolution = GL_CHECK(gles2_ctx.glGetUniformLocation(data.shader_program, "iResolution"));
-    data.attr_fTime = GL_CHECK(gles2_ctx.glGetUniformLocation(data.shader_program, "fTime"));
+    data.attr_iResolution = GL_CHECK(TGles2Fns::glGetUniformLocation(data.shader_program, "iResolution"));
+    data.attr_fTime = GL_CHECK(TGles2Fns::glGetUniformLocation(data.shader_program, "fTime"));
 
-	GL_CHECK(gles2_ctx.glUseProgram(data.shader_program));
-	GL_CHECK(gles2_ctx.glUniform2fv(data.attr_iResolution, 1, screen));
+	GL_CHECK(TGles2Fns::glUseProgram(data.shader_program));
+	GL_CHECK(TGles2Fns::glUniform2fv(data.attr_iResolution, 1, screen));
 
 	SDL_GL_MakeCurrent(wnd, NULL);
 /*
