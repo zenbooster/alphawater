@@ -5,6 +5,8 @@
 #include <SDL3/SDL_opengl.h>
 #include "TGles2Fns.h"
 #include "shaderprogram.h"
+#include "vertexarrayobject.h"
+#include "bufferobject.h"
 
 using namespace std;
 
@@ -64,7 +66,8 @@ void mainImage(out vec4 o, vec2 u)
 
 void main() {
     vec4 color;
-	mainImage(color, texCoord);
+	//mainImage(color, texCoord);
+	mainImage(color, gl_FragCoord.xy);
     fragColor = color;
 })";
 
@@ -82,6 +85,8 @@ class TMyApp
 {
 	private:
 		static float quadVerts[];
+		static GLfloat vertices[];
+		static GLuint indices[];
 		bool is_running;
 	    bool is_fullscreen;
 		bool is_screensaver;
@@ -89,11 +94,14 @@ class TMyApp
 		int wnd_pos[2], wnd_size[2];
 		
 		GLuint framebuffer;
-		GLuint VAO;
 		SDL_Window* wnd;
 		SDL_GLContext ctx;
 		int render_flags;
 		ShaderProgram *p_prg;
+		glm::vec2 iResolution;
+		VertexArrayObject *p_vao;
+		BufferObject *p_vbo_arr;
+		BufferObject *p_vbo_idx;
 		float f_time;
 		float lastTime;
 
@@ -114,15 +122,18 @@ class TMyApp
 		void run(void);
 };
 
-float TMyApp::quadVerts[] = {
-	-1.0, -1.0,     0.0, 0.0,
-	-1.0, 1.0,      0.0, 1.0,
-	1.0, -1.0,      1.0, 0.0,
-
-	1.0, -1.0,      1.0, 0.0,
-	-1.0, 1.0,      0.0, 1.0,
-	1.0, 1.0,       1.0, 1.0
+GLfloat TMyApp::vertices[] = {
+   -1.0f,  1.0f,  0.0f,  1.0f,  0.0f,
+    1.0f,  1.0f,  0.0f,  1.0f,  1.0f,
+    1.0f, -1.0f,  0.0f,  0.0f,  1.0f,
+   -1.0f, -1.0f,  0.0f,  0.0f,  0.0f
 };
+
+GLuint TMyApp::indices[] = {
+    0, 1, 2,
+    0, 2, 3
+};
+
 
 /*void TMyApp::set_mode(void)
 {
@@ -163,6 +174,10 @@ void TMyApp::on_size(void)
 	}
 
     TGles2Fns::glViewport(0, 0, w, h);
+	iResolution = glm::vec2(w, h);
+	p_prg->bind();
+	p_prg->setUniformValue("iResolution", iResolution);
+	p_prg->release();
 	SDL_GL_MakeCurrent(wnd, NULL);
 }
 /*
@@ -242,9 +257,11 @@ void TMyApp::draw(void)
 
 	p_prg->bind();
 	p_prg->setUniformValue("fTime", f_time);
-	TGles2Fns::glBindVertexArray(VAO);
-	TGles2Fns::glDrawArrays(GL_TRIANGLES, 0, 6);
-	//
+	p_vao->bind();
+	TGles2Fns::glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+	p_vao->release();
+	p_prg->release();
+
 	SDL_GL_SwapWindow(wnd);
 	SDL_GL_MakeCurrent(wnd, NULL);
 }
@@ -263,8 +280,6 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 	this->is_screensaver = is_screensaver;
 	this->is_fullscreen = is_fullscreen;
 	render_flags = SDL_RENDERER_PRESENTVSYNC;
-
-	glm::vec2 screen(1, 1);
 
 	f_time = 1.0f;
 
@@ -302,6 +317,8 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 		}
 	}
 	
+	iResolution = glm::vec2(width, height);
+	
 	ctx = SDL_GL_CreateContext(wnd);
 	if (!ctx)
 	{
@@ -324,46 +341,17 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 		exit(-1);
 	}
 
-	//TGles2Fns::glViewport(0, 0, width, height);
-
 	////////
-    GL_CHECK(TGles2Fns::glGenVertexArrays(1, &VAO));
-    GL_CHECK(TGles2Fns::glBindVertexArray(VAO));
-
-    GLuint VBO;
-    GL_CHECK(TGles2Fns::glGenBuffers(1, &VBO));
-    GL_CHECK(TGles2Fns::glBindBuffer(GL_ARRAY_BUFFER, VBO));
-    GL_CHECK(TGles2Fns::glBufferData(GL_ARRAY_BUFFER, sizeof(quadVerts), quadVerts, GL_STATIC_DRAW));
-
-    GL_CHECK(TGles2Fns::glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<void*>(0)));
-    GL_CHECK(TGles2Fns::glEnableVertexAttribArray(0));
-
-    GL_CHECK(TGles2Fns::glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<void*>(2 * sizeof(float))));
-    GL_CHECK(TGles2Fns::glEnableVertexAttribArray(1));
-
-    GL_CHECK(TGles2Fns::glBindVertexArray(0));
-
-    GL_CHECK(TGles2Fns::glGenFramebuffers(1, &framebuffer));
-    GL_CHECK(TGles2Fns::glBindFramebuffer(GL_FRAMEBUFFER, framebuffer)); 
-
-    GLuint texColor;
-    GL_CHECK(TGles2Fns::glGenTextures(1, &texColor));
-    GL_CHECK(TGles2Fns::glBindTexture(GL_TEXTURE_2D, texColor));
-    GL_CHECK(TGles2Fns::glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0));
-    GL_CHECK(TGles2Fns::glBindTexture(GL_TEXTURE_2D, 0));
-    GL_CHECK(TGles2Fns::glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texColor, 0));
-
-    GL_CHECK(TGles2Fns::glBindFramebuffer(GL_FRAMEBUFFER, 0));
+	p_vao = new VertexArrayObject();
+	p_vao->create();
+	p_vao->bind();
 	
+    p_vbo_arr = new BufferObject(GL_ARRAY_BUFFER);
+    p_vbo_arr->create();
+    p_vbo_arr->bind();
+    p_vbo_arr->setUsagePattern(GL_STATIC_DRAW);
+    p_vbo_arr->allocate(vertices, sizeof(vertices));
 
-	////////
-	//process_shader(&data.shader_vert, vertexShaderSource, GL_VERTEX_SHADER);
-	//process_shader(&data.shader_frag, fragmentShaderSource, GL_FRAGMENT_SHADER);
-	
-	//data.shader_program = GL_CHECK(TGles2Fns::glCreateProgram());
-
-	//link_program(&data);
-	
 	p_prg = new ShaderProgram();
 	p_prg->addShaderFromSource(Shader::ShaderType::Vertex, vertexShaderSource);
 	p_prg->addShaderFromSource(Shader::ShaderType::Fragment, fragmentShaderSource);
@@ -375,13 +363,22 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 		exit(-1);
 	}
 	
-    //data.attr_iResolution = GL_CHECK(TGles2Fns::glGetUniformLocation(data.shader_program, "iResolution"));
-    //data.attr_fTime = GL_CHECK(TGles2Fns::glGetUniformLocation(data.shader_program, "fTime"));
 	p_prg->bind();
-	p_prg->setUniformValue("iResolution", screen);
+	p_prg->setUniformValue("iResolution", iResolution);
 
-	//GL_CHECK(TGles2Fns::glUseProgram(data.shader_program));
-	//GL_CHECK(TGles2Fns::glUniform2fv(data.attr_iResolution, 1, screen));
+    p_prg->enableAttributeArray(0);
+    p_prg->setAttributeBuffer(0, GL_FLOAT, 0, 3, sizeof(GLfloat) * 5);
+    p_prg->enableAttributeArray(1);
+    p_prg->setAttributeBuffer(1, GL_FLOAT, 3, 2, 5 * sizeof(GLfloat));
+
+    p_vbo_idx = new BufferObject(GL_ELEMENT_ARRAY_BUFFER);
+    p_vbo_idx->create();
+    p_vbo_idx->setUsagePattern(GL_STATIC_DRAW);
+    p_vbo_idx->bind();
+    p_vbo_idx->allocate(indices, sizeof(indices));
+
+	p_vao->release();
+	p_prg->release();
 
 	SDL_GL_MakeCurrent(wnd, NULL);
 /*
