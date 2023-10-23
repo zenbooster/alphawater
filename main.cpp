@@ -153,6 +153,7 @@ class TMyApp
 		BufferObject *p_vbo_idx;
 		float lastTime;
 
+		void initilizeUniformValue();
 		//void set_mode(void);
 		void on_size(void);
 		//void on_key(GLFWwindow* wnd, int key, int scancode, int action, int mods);
@@ -182,6 +183,32 @@ GLuint TMyApp::indices[] = {
     0, 2, 3
 };
 
+void TMyApp::initilizeUniformValue()
+{
+    //input.iResolution  = Vector3(width() * 1.0f, height() * 1.0f, 1.0f);
+    input.iTime        = 0.0f;
+    input.iGlobalTime  = 0.0f;
+    input.iMouse       = glm::vec4(0.0f, 0.0f, 0.0f, 0.0f);
+    input.iDate        = glm::vec4(0.0f, 0.0f, 0.0f, 0.0f);
+    input.iSampleRate  = 44100 * 1.0f;
+
+    /*auto size = mTextures.size();
+
+    if (size <= 4)
+    {
+        for (int i = 0; i < size; i++)
+        {
+            input.iChannelResolution[i] = Vector3(mTextures[i]->width(),
+                                                   mTextures[i]->height(),
+                                                   1.0f);
+            input.iChannelTime[i] = 0.0f;
+        }
+    }*/
+
+    input.iFrame       = 0;
+    input.iTimeDelta   = 0.0f;
+    input.iFrameRate   = 0.0f;
+}
 
 /*void TMyApp::set_mode(void)
 {
@@ -399,6 +426,8 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
     p_vbo_arr->bind();
     p_vbo_arr->setUsagePattern(GL_STATIC_DRAW);
     p_vbo_arr->allocate(vertices, sizeof(vertices));
+	
+	initilizeUniformValue();
 
 	p_prg = new ShaderProgram();
 	p_prg->addShaderFromSource(Shader::ShaderType::Vertex, vertexShader);
