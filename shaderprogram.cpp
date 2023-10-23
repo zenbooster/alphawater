@@ -433,13 +433,13 @@ void ShaderProgram::setUniformValue(int location, const GLfloat x, const GLfloat
     TGles2Fns::glUniform4f(location, x, y, z, w);
 }
 
-/*void ShaderProgram::setUniformValue(int location, const Vector2 &value)
+void ShaderProgram::setUniformValue(int location, const glm::vec2 &value)
 {
     const GLfloat *fv = reinterpret_cast<const GLfloat *>(&value);
     TGles2Fns::glUniform2fv(location, 1, fv);
 }
 
-void ShaderProgram::setUniformValue(int location, const Vector3 &value)
+/*void ShaderProgram::setUniformValue(int location, const Vector3 &value)
 {
     const GLfloat *fv = reinterpret_cast<const GLfloat *>(&value);
     TGles2Fns::glUniform3fv(location, 1, fv);
@@ -541,14 +541,14 @@ void ShaderProgram::setUniformValue(const char *name, const GLfloat x, const GLf
     TGles2Fns::glUniform4f(location, x, y, z, w);
 }
 
-/*void ShaderProgram::setUniformValue(const char *name, const Vector2 &value)
+void ShaderProgram::setUniformValue(const char *name, const glm::vec2 &value)
 {
     GLint location = TGles2Fns::glGetUniformLocation(mProgramId, name);
     const GLfloat *fv = reinterpret_cast<const GLfloat *>(&value);
     TGles2Fns::glUniform2fv(location, 1, fv);
 }
 
-void ShaderProgram::setUniformValue(const char *name, const Vector3 &value)
+/*void ShaderProgram::setUniformValue(const char *name, const Vector3 &value)
 {
     GLint location = TGles2Fns::glGetUniformLocation(mProgramId, name);
     const GLfloat *fv = reinterpret_cast<const GLfloat *>(&value);

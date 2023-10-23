@@ -4,6 +4,7 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_opengl.h>
 #include "TGles2Fns.h"
+#include "shaderprogram.h"
 
 using namespace std;
 
@@ -67,20 +68,6 @@ void main() {
     fragColor = color;
 })";
 
-typedef struct shader_data
-{
-    GLuint shader_program, shader_frag, shader_vert;
-
-    GLint attr_position;
-    //GLint attr_color, attr_mvp;
-	GLint attr_iResolution, attr_fTime;
-
-    GLuint position_buffer;
-    GLuint color_buffer;
-} shader_data;
-
-//TGles2Fns p_glfns;
-
 #define GL_CHECK(x)                                                                         \
     x;                                                                                      \
     {                                                                                       \
@@ -90,57 +77,6 @@ typedef struct shader_data
             exit(-1);                                                                        \
         }                                                                                   \
     }
-
-static void
-process_shader(GLuint *shader, const char *source, GLint shader_type)
-{
-    GLint status = GL_FALSE;
-    const char *shaders[1] = { NULL };
-    char buffer[1024];
-    GLsizei length = 0;
-
-    /* Create shader and load into GL. */
-    *shader = GL_CHECK(TGles2Fns::glCreateShader(shader_type));
-
-    shaders[0] = source;
-
-    GL_CHECK(TGles2Fns::glShaderSource(*shader, 1, shaders, NULL));
-
-    /* Clean up shader source. */
-    shaders[0] = NULL;
-
-    /* Try compiling the shader. */
-    GL_CHECK(TGles2Fns::glCompileShader(*shader));
-    GL_CHECK(TGles2Fns::glGetShaderiv(*shader, GL_COMPILE_STATUS, &status));
-
-    /* Dump debug info (source and log) if compilation failed. */
-    if (status != GL_TRUE) {
-        TGles2Fns::glGetShaderInfoLog(*shader, sizeof(buffer), &length, &buffer[0]);
-        buffer[length] = '\0';
-        SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "Shader compilation failed: %s", buffer);
-        exit(-1);
-    }
-}
-
-static void
-link_program(struct shader_data *data)
-{
-    GLint status = GL_FALSE;
-    char buffer[1024];
-    GLsizei length = 0;
-
-    GL_CHECK(TGles2Fns::glAttachShader(data->shader_program, data->shader_vert));
-    GL_CHECK(TGles2Fns::glAttachShader(data->shader_program, data->shader_frag));
-    GL_CHECK(TGles2Fns::glLinkProgram(data->shader_program));
-    GL_CHECK(TGles2Fns::glGetProgramiv(data->shader_program, GL_LINK_STATUS, &status));
-
-    if (status != GL_TRUE) {
-        TGles2Fns::glGetProgramInfoLog(data->shader_program, sizeof(buffer), &length, &buffer[0]);
-        buffer[length] = '\0';
-        SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "Program linking failed: %s", buffer);
-        exit(-1);
-    }
-}
 
 class TMyApp
 {
@@ -153,12 +89,11 @@ class TMyApp
 		int wnd_pos[2], wnd_size[2];
 		
 		GLuint framebuffer;
-		//unsigned int shaderProgram;
 		GLuint VAO;
 		SDL_Window* wnd;
 		SDL_GLContext ctx;
 		int render_flags;
-		shader_data data;
+		ShaderProgram *p_prg;
 		float f_time;
 		float lastTime;
 
@@ -305,7 +240,8 @@ void TMyApp::draw(void)
 		exit(-1);
 	}
 
-	GL_CHECK(TGles2Fns::glUniform1f(data.attr_fTime, f_time));
+	p_prg->bind();
+	p_prg->setUniformValue("fTime", f_time);
 	TGles2Fns::glBindVertexArray(VAO);
 	TGles2Fns::glDrawArrays(GL_TRIANGLES, 0, 6);
 	//
@@ -328,7 +264,7 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 	this->is_fullscreen = is_fullscreen;
 	render_flags = SDL_RENDERER_PRESENTVSYNC;
 
-	GLfloat screen[2] = {1, 1};
+	glm::vec2 screen(1, 1);
 
 	f_time = 1.0f;
 
@@ -421,18 +357,31 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 	
 
 	////////
-	process_shader(&data.shader_vert, vertexShaderSource, GL_VERTEX_SHADER);
-	process_shader(&data.shader_frag, fragmentShaderSource, GL_FRAGMENT_SHADER);
+	//process_shader(&data.shader_vert, vertexShaderSource, GL_VERTEX_SHADER);
+	//process_shader(&data.shader_frag, fragmentShaderSource, GL_FRAGMENT_SHADER);
 	
-	data.shader_program = GL_CHECK(TGles2Fns::glCreateProgram());
+	//data.shader_program = GL_CHECK(TGles2Fns::glCreateProgram());
 
-	link_program(&data);
+	//link_program(&data);
 	
-    data.attr_iResolution = GL_CHECK(TGles2Fns::glGetUniformLocation(data.shader_program, "iResolution"));
-    data.attr_fTime = GL_CHECK(TGles2Fns::glGetUniformLocation(data.shader_program, "fTime"));
+	p_prg = new ShaderProgram();
+	p_prg->addShaderFromSource(Shader::ShaderType::Vertex, vertexShaderSource);
+	p_prg->addShaderFromSource(Shader::ShaderType::Fragment, fragmentShaderSource);
+    p_prg->link();
 
-	GL_CHECK(TGles2Fns::glUseProgram(data.shader_program));
-	GL_CHECK(TGles2Fns::glUniform2fv(data.attr_iResolution, 1, screen));
+    if (!p_prg->isLinked())
+	{
+        SDL_LogWarn(SDL_LOG_CATEGORY_VIDEO, "Не удалось слинковать шейдеры: %s", p_prg->log().c_str());
+		exit(-1);
+	}
+	
+    //data.attr_iResolution = GL_CHECK(TGles2Fns::glGetUniformLocation(data.shader_program, "iResolution"));
+    //data.attr_fTime = GL_CHECK(TGles2Fns::glGetUniformLocation(data.shader_program, "fTime"));
+	p_prg->bind();
+	p_prg->setUniformValue("iResolution", screen);
+
+	//GL_CHECK(TGles2Fns::glUseProgram(data.shader_program));
+	//GL_CHECK(TGles2Fns::glUniform2fv(data.attr_iResolution, 1, screen));
 
 	SDL_GL_MakeCurrent(wnd, NULL);
 /*
@@ -593,6 +542,7 @@ TMyApp::TMyApp(int argc, char *argv[])
 
 TMyApp::~TMyApp()
 {
+	delete p_prg;
 	SDL_DestroyWindow(wnd);
 }
 
