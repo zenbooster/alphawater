@@ -539,6 +539,9 @@ TMyApp::TMyApp(int argc, char *argv[])
 
 TMyApp::~TMyApp()
 {
+    delete p_vao;
+    delete p_vbo_arr;
+	delete p_vbo_idx;
 	delete p_prg;
 	SDL_DestroyWindow(wnd);
 }
