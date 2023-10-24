@@ -292,19 +292,20 @@ void TMyApp::on_size(void)
 		exit(-1);
 	}
 
-    TGles2Fns::glViewport(0, 0, width-1, height-1);
+    TGles2Fns::glViewport(0, 0, width, height);
 	input.iResolution = glm::vec3(width, height, 1.0f);
 	p_prg->bind();
 	p_prg->setUniformValue("iResolution", input.iResolution);
 	p_prg->release();
 
 #ifdef TEST_BUF_A
+	p_prg_a->bind();
+	p_prg_a->setUniformValue("iResolution", input.iResolution);
+	p_prg_a->release();
+
 	for (int i = 0; i < 2; i++)
 	{
-		delete p_fbo[i];
-		p_fbo[i] = 0;
-		p_fbo[i] = new FrameBuffer();
-		p_fbo[i]->create(width, height, false);
+		p_fbo[i]->resize(width, height);
 	}
 #endif
 	SDL_GL_MakeCurrent(wnd, NULL);
@@ -399,21 +400,27 @@ void TMyApp::draw(void)
 	p_vao->bind();
 	TGles2Fns::glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 	p_vao->release();
+	TGles2Fns::glBindTexture(GL_TEXTURE_2D, 0);
 	p_prg_a->release();
 	p_fbo[i_fbo_idx]->release();
-	
+#endif	
+
 	p_prg->bind();
+
+#ifdef TEST_BUF_A
 	channel = 0;
     TGles2Fns::glActiveTexture(GL_TEXTURE0 + channel);
 	TGles2Fns::glBindTexture(GL_TEXTURE_2D, p_fbo[i_fbo_idx]->textureId());
-#else
-	p_prg->bind();
 #endif
+
 	p_prg->setUniformValue("iTime", input.iTime);
 	p_prg->setUniformValue("iFrame", input.iFrame);
 	p_vao->bind();
 	TGles2Fns::glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 	p_vao->release();
+#ifdef TEST_BUF_A
+	TGles2Fns::glBindTexture(GL_TEXTURE_2D, 0);
+#endif
 	p_prg->release();
 	
 	SDL_GL_SwapWindow(wnd);

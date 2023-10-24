@@ -9,6 +9,7 @@ public:
     FrameBuffer();
     ~FrameBuffer();
 
+    void resize(GLint w, GLint h);
     void create(GLint w, GLint h, bool depth = true);
     void bind();
     void release();

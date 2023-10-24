@@ -25,6 +25,19 @@ FrameBuffer::~FrameBuffer()
     }
 }
 
+void FrameBuffer::resize(GLint w, GLint h)
+{
+    mRenderBufferWidth = w;
+    mRenderBufferHeight = h;
+
+    bind();
+	//TGles2Fns::glViewport(0, 0, w, h);
+    TGles2Fns::glBindTexture(GL_TEXTURE_2D, mRenderTextureId);
+    TGles2Fns::glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+	TGles2Fns::glBindTexture(GL_TEXTURE_2D, 0);
+    release();
+}
+
 void FrameBuffer::create(GLint w, GLint h, bool depth)
 {
     if (!mAllocated)
