@@ -27,14 +27,51 @@ FrameBuffer::~FrameBuffer()
 
 void FrameBuffer::resize(GLint w, GLint h)
 {
-    mRenderBufferWidth = w;
-    mRenderBufferHeight = h;
+    //mRenderBufferWidth = w;
+    //mRenderBufferHeight = h;
 
     bind();
+	TGles2Fns::glReadBuffer(GL_COLOR_ATTACHMENT0);
 
-    TGles2Fns::glBindTexture(GL_TEXTURE_2D, mRenderTextureId);
+    /*TGles2Fns::glBindTexture(GL_TEXTURE_2D, mRenderTextureId);
     TGles2Fns::glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
 	TGles2Fns::glBindTexture(GL_TEXTURE_2D, 0);
+	*/
+	GLuint mNewTextureId;
+	TGles2Fns::glGenTextures(1, &mNewTextureId);
+	//TGles2Fns::glActiveTexture(GL_TEXTURE0);
+    TGles2Fns::glBindTexture(GL_TEXTURE_2D, mNewTextureId);
+    TGles2Fns::glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+
+    TGles2Fns::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    TGles2Fns::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    TGles2Fns::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    TGles2Fns::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	
+	//TGles2Fns::glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 0, 0, mRenderBufferWidth, mRenderBufferHeight, 0);
+	TGles2Fns::glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, mRenderBufferWidth, mRenderBufferHeight);
+	TGles2Fns::glDeleteTextures(1, &mRenderTextureId);
+	
+	mRenderTextureId = mNewTextureId;
+    TGles2Fns::glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, mRenderTextureId, 0);
+
+	/*glCopyImageSubData(
+		mRenderTextureId,
+		GL_TEXTURE_2D,
+		0,
+		GLint srcX,
+		GLint srcY,
+		GLint srcZ,
+		mNewTextureId,
+		GL_TEXTURE_2D,
+		0,
+		GLint dstX, 
+		GLint dstY,
+		GLint dstZ,
+		mRenderBufferWidth,
+		mRenderBufferHeight,
+		GLsizei srcDepth
+	);*/
 
     if (mDepthBuffer != 0)
     {
@@ -44,6 +81,9 @@ void FrameBuffer::resize(GLint w, GLint h)
     }
 
     release();
+
+    mRenderBufferWidth = w;
+    mRenderBufferHeight = h;
 }
 
 void FrameBuffer::create(GLint w, GLint h, bool depth)
@@ -102,12 +142,13 @@ void FrameBuffer::bind()
         TGles2Fns::glEnable(GL_TEXTURE_2D);
         TGles2Fns::glBindFramebuffer(GL_FRAMEBUFFER, mFrameBufferId);
         TGles2Fns::glViewport(0, 0, mRenderBufferWidth, mRenderBufferHeight);
-        TGles2Fns::glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        /*TGles2Fns::glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
         if (mDepthBuffer != 0)
             TGles2Fns::glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         else
             TGles2Fns::glClear(GL_COLOR_BUFFER_BIT);
+		*/
 
         mBinded = true;
     }
