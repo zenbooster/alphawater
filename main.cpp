@@ -10,12 +10,47 @@
 #include "vertexarrayobject.h"
 #include "bufferobject.h"
 
-//#define TEST_BUF_A
+#define TEST_BUF_A
 
 using namespace std;
 
 #ifdef TEST_BUF_A
 const char *fragmentShaderSource = 
+R"(
+// Curling Smoke by Leon Denise 2023-01-19
+
+// finally learnt how to curl noise
+
+// from Pete Werner article:
+// http://petewerner.blogspot.com/2015/02/intro-to-curl-noise.html
+
+
+void mainImage( out vec4 fragColor, in vec2 fragCoord )
+{
+    // coordinates
+    vec2 uv = fragCoord/iResolution.xy;
+   
+    // frame
+    vec3 color = texture(iChannel0, uv).rgb;
+    
+    // normal
+    vec2 e = vec2(0, 0);
+    #define T(u) texture(iChannel0, uv+u).r
+    vec3 normal = vec3(
+        T(e.xy)-T(-e.xy), 
+        T(-e.yx)-T(e.yx),
+        color.r*.1);
+    if (abs(normal.x) + abs(normal.y) + abs(normal.z) > .001)
+        normal = normalize(normal);
+             
+    // shade
+    color *= dot(normal, normalize(vec3(0,1,1)))*.5+.5;
+    
+    fragColor = vec4(color,1.0);
+}
+)";
+
+const char *fragmentShaderSource_buffer_a = 
 R"(
 
 // Curling Smoke
@@ -432,6 +467,11 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 	p_prg = new ShaderProgram();
 	p_prg->addShaderFromSource(Shader::ShaderType::Vertex, vertexShader);
 	std::string fragment = std::string(fragmentShaderPassHeader);
+	
+	char buffer[0x20];
+	sprintf(buffer, "uniform sampler2D iChannel%d;\n", 0);
+	fragment.append(buffer);
+	
 	fragment.append(fragmentShaderSource);
 	fragment.append(fragmentShaderPassFooter);
 	p_prg->addShaderFromSource(Shader::ShaderType::Fragment, fragment.c_str());
