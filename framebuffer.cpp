@@ -31,10 +31,18 @@ void FrameBuffer::resize(GLint w, GLint h)
     mRenderBufferHeight = h;
 
     bind();
-	//TGles2Fns::glViewport(0, 0, w, h);
+
     TGles2Fns::glBindTexture(GL_TEXTURE_2D, mRenderTextureId);
     TGles2Fns::glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
 	TGles2Fns::glBindTexture(GL_TEXTURE_2D, 0);
+
+    if (mDepthBuffer != 0)
+    {
+        TGles2Fns::glBindRenderbuffer(GL_RENDERBUFFER, mDepthBuffer);
+        TGles2Fns::glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, w, h);
+        TGles2Fns::glBindRenderbuffer(GL_RENDERBUFFER, 0);
+    }
+
     release();
 }
 
