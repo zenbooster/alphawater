@@ -9,6 +9,7 @@
 #include "shaderinput.h"
 #include "vertexarrayobject.h"
 #include "bufferobject.h"
+#include "framebuffer.h"
 
 #define TEST_BUF_A
 
@@ -34,7 +35,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     vec3 color = texture(iChannel0, uv).rgb;
     
     // normal
-    vec2 e = vec2(0, 0);
+    /*vec2 e = vec2(0, 0);
     #define T(u) texture(iChannel0, uv+u).r
     vec3 normal = vec3(
         T(e.xy)-T(-e.xy), 
@@ -45,6 +46,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
              
     // shade
     color *= dot(normal, normalize(vec3(0,1,1)))*.5+.5;
+	*/
     
     fragColor = vec4(color,1.0);
 }
@@ -169,6 +171,8 @@ void mainImage(out vec4 o, vec2 u)
 class TMyApp
 {
 	private:
+	    int width;
+		int height;
 		static float quadVerts[];
 		static GLfloat vertices[];
 		static GLuint indices[];
@@ -182,10 +186,17 @@ class TMyApp
 		SDL_GLContext ctx;
 		int render_flags;
 		ShaderProgram *p_prg;
+	#ifdef TEST_BUF_A
+		ShaderProgram *p_prg_a;
+	#endif
 		ShaderInput input;
 		VertexArrayObject *p_vao;
 		BufferObject *p_vbo_arr;
 		BufferObject *p_vbo_idx;
+	#ifdef TEST_BUF_A
+		FrameBuffer *p_fbo[2];
+		int i_fbo_idx;
+	#endif
 		float lastTime;
 
 		void initilizeUniformValue();
@@ -272,9 +283,7 @@ void TMyApp::initilizeUniformValue()
 
 void TMyApp::on_size(void)
 {
-	int w, h;
-
-	SDL_GetWindowSize(wnd, &w, &h);
+	SDL_GetWindowSize(wnd, &width, &height);
 	
 	int status = SDL_GL_MakeCurrent(wnd, ctx);
 	if (status)
@@ -283,11 +292,21 @@ void TMyApp::on_size(void)
 		exit(-1);
 	}
 
-    TGles2Fns::glViewport(0, 0, w, h);
-	input.iResolution = glm::vec3(w, h, 1.0f);
+    TGles2Fns::glViewport(0, 0, width-1, height-1);
+	input.iResolution = glm::vec3(width, height, 1.0f);
 	p_prg->bind();
 	p_prg->setUniformValue("iResolution", input.iResolution);
 	p_prg->release();
+
+#ifdef TEST_BUF_A
+	for (int i = 0; i < 2; i++)
+	{
+		delete p_fbo[i];
+		p_fbo[i] = 0;
+		p_fbo[i] = new FrameBuffer();
+		p_fbo[i]->create(width, height, false);
+	}
+#endif
 	SDL_GL_MakeCurrent(wnd, NULL);
 }
 /*
@@ -356,7 +375,6 @@ void TMyApp::draw(void)
 	float delta = now - lastTime;
 
 	lastTime = now;
-	input.iTime += delta;
 
 	int status = SDL_GL_MakeCurrent(wnd, ctx);
 	if (status)
@@ -365,15 +383,44 @@ void TMyApp::draw(void)
 		exit(-1);
 	}
 
+#ifdef TEST_BUF_A
+	int channel = 0;
+	int i_tex = p_fbo[i_fbo_idx]->textureId();
+	i_fbo_idx = (i_fbo_idx + 1) & 1;
+
+	p_fbo[i_fbo_idx]->bind();
+	p_prg_a->bind();
+	
+    TGles2Fns::glActiveTexture(GL_TEXTURE0 + channel);
+	TGles2Fns::glBindTexture(GL_TEXTURE_2D, i_tex);
+
+	p_prg_a->setUniformValue("iTime", input.iTime);
+	p_prg_a->setUniformValue("iFrame", input.iFrame);
+	p_vao->bind();
+	TGles2Fns::glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+	p_vao->release();
+	p_prg_a->release();
+	p_fbo[i_fbo_idx]->release();
+	
 	p_prg->bind();
+	channel = 0;
+    TGles2Fns::glActiveTexture(GL_TEXTURE0 + channel);
+	TGles2Fns::glBindTexture(GL_TEXTURE_2D, p_fbo[i_fbo_idx]->textureId());
+#else
+	p_prg->bind();
+#endif
 	p_prg->setUniformValue("iTime", input.iTime);
+	p_prg->setUniformValue("iFrame", input.iFrame);
 	p_vao->bind();
 	TGles2Fns::glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 	p_vao->release();
 	p_prg->release();
-
+	
 	SDL_GL_SwapWindow(wnd);
 	SDL_GL_MakeCurrent(wnd, NULL);
+	
+	input.iTime += delta;
+	input.iFrame++;
 }
 
 inline bool TMyApp::is_preview(void) const
@@ -383,9 +430,6 @@ inline bool TMyApp::is_preview(void) const
 
 void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 {
-    int width;
-    int height;
-	
 	is_running = true;
 	this->is_screensaver = is_screensaver;
 	this->is_fullscreen = is_fullscreen;
@@ -426,7 +470,7 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 			exit(-1);
 		}
 	}
-	
+
 	input.iResolution = glm::vec3(width, height, 1.0f);
 	
 	ctx = SDL_GL_CreateContext(wnd);
@@ -466,15 +510,18 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 
 	p_prg = new ShaderProgram();
 	p_prg->addShaderFromSource(Shader::ShaderType::Vertex, vertexShader);
-	std::string fragment = std::string(fragmentShaderPassHeader);
-	
-	char buffer[0x20];
-	sprintf(buffer, "uniform sampler2D iChannel%d;\n", 0);
-	fragment.append(buffer);
-	
-	fragment.append(fragmentShaderSource);
-	fragment.append(fragmentShaderPassFooter);
-	p_prg->addShaderFromSource(Shader::ShaderType::Fragment, fragment.c_str());
+	{
+		std::string fragment = std::string(fragmentShaderPassHeader);
+		
+	#ifdef TEST_BUF_A
+		char buffer[0x20];
+		sprintf(buffer, "uniform sampler2D iChannel%d;\n", 0);
+		fragment.append(buffer);
+	#endif	
+		fragment.append(fragmentShaderSource);
+		fragment.append(fragmentShaderPassFooter);
+		p_prg->addShaderFromSource(Shader::ShaderType::Fragment, fragment.c_str());
+	}
     p_prg->link();
 
     if (!p_prg->isLinked())
@@ -490,6 +537,42 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
     p_prg->setAttributeBuffer(0, GL_FLOAT, 0, 3, sizeof(GLfloat) * 5);
     p_prg->enableAttributeArray(1);
     p_prg->setAttributeBuffer(1, GL_FLOAT, 3, 2, 5 * sizeof(GLfloat));
+	
+	p_prg->release();
+
+#ifdef TEST_BUF_A
+	i_fbo_idx = 0;
+
+	p_prg_a = new ShaderProgram();
+	p_prg_a->addShaderFromSource(Shader::ShaderType::Vertex, vertexShader);
+	{
+		std::string fragment = std::string(fragmentShaderPassHeader);
+		
+		char buffer[0x20];
+		sprintf(buffer, "uniform sampler2D iChannel%d;\n", 0);
+		fragment.append(buffer);
+
+		fragment.append(fragmentShaderSource_buffer_a);
+		fragment.append(fragmentShaderPassFooter);
+		p_prg_a->addShaderFromSource(Shader::ShaderType::Fragment, fragment.c_str());
+	}
+    p_prg_a->link();
+
+    if (!p_prg_a->isLinked())
+	{
+        SDL_LogWarn(SDL_LOG_CATEGORY_VIDEO, "Не удалось слинковать шейдеры (buf A): %s", p_prg_a->log().c_str());
+		exit(-1);
+	}
+	
+	p_prg_a->bind();
+	p_prg_a->setUniformValue("iResolution", input.iResolution);
+
+    p_prg_a->enableAttributeArray(0);
+    p_prg_a->setAttributeBuffer(0, GL_FLOAT, 0, 3, sizeof(GLfloat) * 5);
+    p_prg_a->enableAttributeArray(1);
+    p_prg_a->setAttributeBuffer(1, GL_FLOAT, 3, 2, 5 * sizeof(GLfloat));
+	p_prg_a->release();
+#endif
 
     p_vbo_idx = new BufferObject(GL_ELEMENT_ARRAY_BUFFER);
     p_vbo_idx->create();
@@ -498,8 +581,14 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
     p_vbo_idx->allocate(indices, sizeof(indices));
 
 	p_vao->release();
-	p_prg->release();
+	//p_prg_a->release();
 
+#ifdef TEST_BUF_A	
+	p_fbo[0] = new FrameBuffer();
+	p_fbo[0]->create(width, height, false);
+	p_fbo[1] = new FrameBuffer();
+	p_fbo[1]->create(width, height, false);
+#endif
 	SDL_GL_MakeCurrent(wnd, NULL);
 /*
 
