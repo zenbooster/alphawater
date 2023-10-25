@@ -27,9 +27,6 @@ FrameBuffer::~FrameBuffer()
 
 void FrameBuffer::resize(GLint w, GLint h)
 {
-    //mRenderBufferWidth = w;
-    //mRenderBufferHeight = h;
-
     bind();
 	TGles2Fns::glReadBuffer(GL_COLOR_ATTACHMENT0);
 
@@ -39,7 +36,9 @@ void FrameBuffer::resize(GLint w, GLint h)
 	*/
 	GLuint mNewTextureId;
 	TGles2Fns::glGenTextures(1, &mNewTextureId);
-	//TGles2Fns::glActiveTexture(GL_TEXTURE0);
+	GLint i_active;
+	TGles2Fns::glGetIntegerv(GL_ACTIVE_TEXTURE, &i_active);
+	TGles2Fns::glActiveTexture(GL_TEXTURE0);
     TGles2Fns::glBindTexture(GL_TEXTURE_2D, mNewTextureId);
     TGles2Fns::glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
 
@@ -49,28 +48,11 @@ void FrameBuffer::resize(GLint w, GLint h)
     TGles2Fns::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	
 	TGles2Fns::glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, min(mRenderBufferWidth, w), min(mRenderBufferHeight, h));
+	TGles2Fns::glActiveTexture(i_active);
 	TGles2Fns::glDeleteTextures(1, &mRenderTextureId);
 	
 	mRenderTextureId = mNewTextureId;
     TGles2Fns::glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, mRenderTextureId, 0);
-
-	/*glCopyImageSubData(
-		mRenderTextureId,
-		GL_TEXTURE_2D,
-		0,
-		GLint srcX,
-		GLint srcY,
-		GLint srcZ,
-		mNewTextureId,
-		GL_TEXTURE_2D,
-		0,
-		GLint dstX, 
-		GLint dstY,
-		GLint dstZ,
-		mRenderBufferWidth,
-		mRenderBufferHeight,
-		GLsizei srcDepth
-	);*/
 
     if (mDepthBuffer != 0)
     {
