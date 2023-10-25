@@ -86,6 +86,7 @@ void FrameBuffer::create(GLint w, GLint h, bool depth)
 
     TGles2Fns::glBindTexture(GL_TEXTURE_2D, mRenderTextureId);
     TGles2Fns::glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+	//TGles2Fns::glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, w, h);
 
     TGles2Fns::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     TGles2Fns::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
