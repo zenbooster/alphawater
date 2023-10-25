@@ -1,8 +1,10 @@
+#include <map>
 #include <iostream>
 #include <io.h>
 #include <fcntl.h>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_opengl.h>
+#include <csv.h>
 #include "TGles2Fns.h"
 #include "shaderprogram.h"
 #include "shaders.h"
@@ -11,6 +13,8 @@
 #include "bufferobject.h"
 #include "framebuffer.h"
 
+#define DATA_FOLDER "../data"
+#define PACK_NAME "curling-smoke"
 #define TEST_BUF_A
 
 using namespace std;
@@ -33,21 +37,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
    
     // frame
     vec3 color = texture(iChannel0, uv).rgb;
-    
-    // normal
-    /*vec2 e = vec2(0, 0);
-    #define T(u) texture(iChannel0, uv+u).r
-    vec3 normal = vec3(
-        T(e.xy)-T(-e.xy), 
-        T(-e.yx)-T(e.yx),
-        color.r*.1);
-    if (abs(normal.x) + abs(normal.y) + abs(normal.z) > .001)
-        normal = normalize(normal);
-             
-    // shade
-    color *= dot(normal, normalize(vec3(0,1,1)))*.5+.5;
-	*/
-    
+
     fragColor = vec4(color,1.0);
 }
 )";
@@ -164,7 +154,7 @@ void mainImage(out vec4 o, vec2 u)
         GLenum glError = TGles2Fns::glGetError();                                                  \
         if (glError != GL_NO_ERROR) {                                                       \
             SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "glGetError() = %i (0x%.8x) at line %i\n", glError, glError, __LINE__); \
-            exit(-1);                                                                        \
+            throw exception();                                                                        \
         }                                                                                   \
     }
 
@@ -207,6 +197,7 @@ class TMyApp
 		//void on_mouse_btn(GLFWwindow* wnd, int button, int action, int mods);
 		void draw(void);
 		inline bool is_preview(void) const;
+		void load(string pack_name);
 		void init(bool is_screensaver, bool is_fullscreen, bool is_visible);
 		void show_usage(void);
 
@@ -289,7 +280,7 @@ void TMyApp::on_size(void)
 	if (status)
 	{
 		SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "SDL_GL_MakeCurrent(): %s\n", SDL_GetError());
-		exit(-1);
+		throw exception();
 	}
 
     TGles2Fns::glViewport(0, 0, width, height);
@@ -381,7 +372,7 @@ void TMyApp::draw(void)
 	if (status)
 	{
 		SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "SDL_GL_MakeCurrent(): %s\n", SDL_GetError());
-		exit(-1);
+		throw exception();
 	}
 
 #ifdef TEST_BUF_A
@@ -435,6 +426,84 @@ inline bool TMyApp::is_preview(void) const
 	return is_screensaver && !is_fullscreen;
 }
 
+void TMyApp::load(string pack_name)
+{
+	string s_pack_folder = tostringstream() << DATA_FOLDER << "/" << pack_name + "/";
+	enum TEnumFile
+	{
+		//ef_config,
+		ef_common,
+		ef_image,
+		ef_buf_a,
+		ef_buf_b,
+		ef_buf_c,
+		ef_buf_d
+	};
+	static map<TEnumFile, string> m_file_names =
+	{
+		//{ef_config, "config.csv"},
+		{ef_common, "common.f"},
+		{ef_image, "image.f"},
+		{ef_buf_a, "buffer-a.f"},
+		{ef_buf_b, "buffer-b.f"},
+		{ef_buf_c, "buffer-c.f"},
+		{ef_buf_d, "buffer-d.f"}
+	};
+	map<TEnumFile, string> m_file_content;
+	string fname, fspec;
+	bool is_has_buffers = false;
+	
+	SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Загружаем пакет из каталога: %s\n", s_pack_folder.c_str());
+
+	for(int i = ef_common; i <= ef_buf_d; i++)
+	{
+		TEnumFile ef = static_cast<TEnumFile>(i);
+		fname = m_file_names[ef];
+		fspec = tostringstream() << s_pack_folder << fname;
+
+		ifstream f(fspec);
+		if(f.good())
+		{
+			m_file_content[ef] = tostringstream() << f.rdbuf();
+			SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Загружен файл: %s\n", fname.c_str());
+			
+			if(!is_has_buffers && ef >= ef_buf_a)
+			{
+				is_has_buffers = true;
+			}
+		}
+		else
+		{
+			if(ef == ef_image)
+			{
+				SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Не найден обязательный файл: %s\n", fname.c_str());
+				throw exception();
+			}
+		}
+	}
+	
+	if(is_has_buffers)
+	{
+		/*if(!m_file_content.count(ef_config))
+		{
+			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Есть буферы но нет конфига: %s\n", s_pack_folder.c_str());
+			throw exception();
+		}*/
+		fname = "config.csv";
+		fspec = tostringstream() << s_pack_folder << fname;
+		SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Загружаем конфиг: %s\n", fname.c_str());
+		io::CSVReader<5> in(fspec.c_str());
+		in.read_header(io::ignore_missing_column, "prg", "ch0", "ch1", "ch2", "ch3");
+		string prg, ch0, ch1, ch2, ch3;
+		while(in.read_row(prg, ch0, ch1, ch2, ch3))
+		{
+			SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "%s: %s, %s, %s, %s\n", prg.c_str(), ch0.c_str(), ch1.c_str(), ch2.c_str(), ch3.c_str());
+		}
+	}
+	
+	SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Пакет загружен успешно!\n");
+}
+
 void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 {
 	is_running = true;
@@ -447,7 +516,7 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 	if (SDL_InitSubSystem(SDL_INIT_VIDEO) < 0)
 	{
 		SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "Не могу инициализировать видео драйвер: %s\n", SDL_GetError());
-		exit(-1);
+		throw exception();
 	}
 	
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
@@ -474,7 +543,7 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 		if (!wnd)
 		{
 			SDL_LogError(SDL_LOG_CATEGORY_SYSTEM, "Не могу создать окно: %s\n", SDL_GetError());
-			exit(-1);
+			throw exception();
 		}
 	}
 
@@ -484,7 +553,7 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 	if (!ctx)
 	{
 		SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "Не могу создать контекст: %s\n", SDL_GetError());
-		exit(-1);
+		throw exception();
 	}
 	
 	TGles2Fns::load();
@@ -499,7 +568,7 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 	if (status)
 	{
 		SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "SDL_GL_MakeCurrent(): %s\n", SDL_GetError());
-		exit(-1);
+		throw exception();
 	}
 
 	////////
@@ -514,6 +583,8 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
     p_vbo_arr->allocate(vertices, sizeof(vertices));
 	
 	initilizeUniformValue();
+	
+	load(PACK_NAME);
 
 	p_prg = new ShaderProgram();
 	p_prg->addShaderFromSource(Shader::ShaderType::Vertex, vertexShader);
@@ -534,7 +605,7 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
     if (!p_prg->isLinked())
 	{
         SDL_LogWarn(SDL_LOG_CATEGORY_VIDEO, "Не удалось слинковать шейдеры: %s", p_prg->log().c_str());
-		exit(-1);
+		throw exception();
 	}
 	
 	p_prg->bind();
@@ -568,7 +639,7 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
     if (!p_prg_a->isLinked())
 	{
         SDL_LogWarn(SDL_LOG_CATEGORY_VIDEO, "Не удалось слинковать шейдеры (buf A): %s", p_prg_a->log().c_str());
-		exit(-1);
+		throw exception();
 	}
 	
 	p_prg_a->bind();
@@ -636,7 +707,7 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
     if (!wnd)
     {
         wcerr << L"failed to create wnd" << endl;
-        exit(-1);
+        throw exception();
     }
 
 	glfwSetWindowUserPointer(wnd, this);	
@@ -682,7 +753,7 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
     {
         wcerr << L"failed to initialize glad with processes " << endl;
-        exit(-1);
+        throw exception();
     }
 	*/
 
@@ -795,8 +866,9 @@ int main(int argc, char *argv[])
 		app.run();
 		res = 0;
 	}
-	catch(exception& )
+	catch(exception& e)
 	{
+		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "В функции main поймано исключение: \"%s\"\n", e.what());
 		res = 1;
 	}
 
