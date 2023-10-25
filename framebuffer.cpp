@@ -48,8 +48,7 @@ void FrameBuffer::resize(GLint w, GLint h)
     TGles2Fns::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     TGles2Fns::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	
-	//TGles2Fns::glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 0, 0, mRenderBufferWidth, mRenderBufferHeight, 0);
-	TGles2Fns::glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, mRenderBufferWidth, mRenderBufferHeight);
+	TGles2Fns::glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, min(mRenderBufferWidth, w), min(mRenderBufferHeight, h));
 	TGles2Fns::glDeleteTextures(1, &mRenderTextureId);
 	
 	mRenderTextureId = mNewTextureId;
