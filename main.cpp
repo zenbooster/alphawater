@@ -378,7 +378,7 @@ void TMyApp::draw(void)
 #ifdef TEST_BUF_A
 	int channel = 0;
 	int i_tex = p_fbo[i_fbo_idx]->textureId();
-	Texture &texture = p_fbo[i_fbo_idx]->texture();
+	shared_ptr<Texture> texture = p_fbo[i_fbo_idx]->texture();
 	i_fbo_idx = (i_fbo_idx + 1) & 1;
 
 	p_fbo[i_fbo_idx]->bind();
@@ -386,7 +386,7 @@ void TMyApp::draw(void)
 	
     //TGles2Fns::glActiveTexture(GL_TEXTURE0 + channel);
 	//TGles2Fns::glBindTexture(GL_TEXTURE_2D, i_tex);
-	texture.bindToChannel(channel);
+	texture->bindToChannel(channel);
 
 	p_prg_a->setUniformValue("iTime", input.iTime);
 	p_prg_a->setUniformValue("iFrame", input.iFrame);
@@ -404,7 +404,7 @@ void TMyApp::draw(void)
 	channel = 0;
     //TGles2Fns::glActiveTexture(GL_TEXTURE0 + channel);
 	//TGles2Fns::glBindTexture(GL_TEXTURE_2D, p_fbo[i_fbo_idx]->textureId());
-	p_fbo[i_fbo_idx]->texture().bindToChannel(channel);
+	p_fbo[i_fbo_idx]->texture()->bindToChannel(channel);
 #endif
 
 	p_prg->setUniformValue("iTime", input.iTime);

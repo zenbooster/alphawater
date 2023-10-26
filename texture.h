@@ -2,6 +2,19 @@
 #define TEXTURE_H
 
 #include "common.h"
+#include <memory>
+
+class TextureIdHolder
+{
+private:
+	GLuint mTextureId;
+
+public:
+	TextureIdHolder();
+	~TextureIdHolder();
+	
+	GLuint textureId() const { return mTextureId; }
+};
 
 class Texture
 {
@@ -11,7 +24,7 @@ private:
 	GLenum mFilterMode;
     bool mVFlip;
     //bool msRGB;
-    GLuint mTextureId;
+	shared_ptr<TextureIdHolder> tih;
 	bool mLoaded;
 
     GLint mWidth, mHeight, mDepth;
@@ -50,7 +63,8 @@ public:
 
     bool isLoaded() const { return mLoaded; }
 
-    GLuint textureId() const { return mTextureId; }
+    GLuint textureId() const { return tih->textureId(); }
+	shared_ptr<TextureIdHolder> textureIdHolder() { return tih; }
 };
 
 #endif // GL_TEXTURE_H

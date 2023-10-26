@@ -4,15 +4,13 @@
 FrameBuffer::FrameBuffer()
     : mFrameBufferId(0),
       mOldFrameBufferId(0),
-      mRenderTextureId(0),
       mDepthBuffer(0),
       mAllocated(false),
       mBinded(false),
       mRenderBufferWidth(0),
       mRenderBufferHeight(0),
-	  tex(GL_TEXTURE_2D, GL_CLAMP_TO_EDGE, GL_LINEAR, false)
+	  tex(make_shared<Texture>(GL_TEXTURE_2D, GL_CLAMP_TO_EDGE, GL_LINEAR, false))
 {
-	mRenderTextureId = tex.textureId();
 }
 
 FrameBuffer::~FrameBuffer()
@@ -20,7 +18,6 @@ FrameBuffer::~FrameBuffer()
     release();
     if (mAllocated)
     {
-        TGles2Fns::glDeleteTextures(1, &mRenderTextureId);
         TGles2Fns::glDeleteRenderbuffers(1, &mDepthBuffer);
         TGles2Fns::glDeleteFramebuffers(1, &mFrameBufferId);
         mAllocated = false;
@@ -30,8 +27,7 @@ FrameBuffer::~FrameBuffer()
 void FrameBuffer::resize(GLint w, GLint h, Texture::TEnumResizeContent erc)
 {
     bind();
-	tex.resize(w, h, erc);
-	mRenderTextureId = tex.textureId();
+	tex->resize(w, h, erc);
 
     if (mDepthBuffer != 0)
     {
@@ -62,7 +58,7 @@ void FrameBuffer::create(GLint w, GLint h, bool depth)
 
     bind();
 
-	tex.createEmpty(w, h);
+	tex->createEmpty(w, h);
 
     if (depth)
     {
