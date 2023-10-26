@@ -9,8 +9,10 @@ FrameBuffer::FrameBuffer()
       mAllocated(false),
       mBinded(false),
       mRenderBufferWidth(0),
-      mRenderBufferHeight(0)
+      mRenderBufferHeight(0),
+	  tex(GL_TEXTURE_2D, GL_CLAMP_TO_EDGE, GL_LINEAR, false)
 {
+	mRenderTextureId = tex.textureId();
 }
 
 FrameBuffer::~FrameBuffer()
@@ -25,34 +27,11 @@ FrameBuffer::~FrameBuffer()
     }
 }
 
-void FrameBuffer::resize(GLint w, GLint h)
+void FrameBuffer::resize(GLint w, GLint h, Texture::TEnumResizeContent erc)
 {
     bind();
-	TGles2Fns::glReadBuffer(GL_COLOR_ATTACHMENT0);
-
-    /*TGles2Fns::glBindTexture(GL_TEXTURE_2D, mRenderTextureId);
-    TGles2Fns::glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-	TGles2Fns::glBindTexture(GL_TEXTURE_2D, 0);
-	*/
-	GLuint mNewTextureId;
-	TGles2Fns::glGenTextures(1, &mNewTextureId);
-	GLint i_active;
-	TGles2Fns::glGetIntegerv(GL_ACTIVE_TEXTURE, &i_active);
-	TGles2Fns::glActiveTexture(GL_TEXTURE0);
-    TGles2Fns::glBindTexture(GL_TEXTURE_2D, mNewTextureId);
-    TGles2Fns::glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-
-    TGles2Fns::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    TGles2Fns::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    TGles2Fns::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    TGles2Fns::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	
-	TGles2Fns::glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, min(mRenderBufferWidth, w), min(mRenderBufferHeight, h));
-	TGles2Fns::glActiveTexture(i_active);
-	TGles2Fns::glDeleteTextures(1, &mRenderTextureId);
-	
-	mRenderTextureId = mNewTextureId;
-    TGles2Fns::glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, mRenderTextureId, 0);
+	tex.resize(w, h, erc);
+	mRenderTextureId = tex.textureId();
 
     if (mDepthBuffer != 0)
     {
@@ -72,7 +51,6 @@ void FrameBuffer::create(GLint w, GLint h, bool depth)
     if (!mAllocated)
     {
         TGles2Fns::glGenFramebuffers(1, &mFrameBufferId);
-        TGles2Fns::glGenTextures(1, &mRenderTextureId);
 
         if (depth)
             TGles2Fns::glGenRenderbuffers(1, &mDepthBuffer);
@@ -84,16 +62,7 @@ void FrameBuffer::create(GLint w, GLint h, bool depth)
 
     bind();
 
-    TGles2Fns::glBindTexture(GL_TEXTURE_2D, mRenderTextureId);
-    TGles2Fns::glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-	//TGles2Fns::glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, w, h);
-
-    TGles2Fns::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    TGles2Fns::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    TGles2Fns::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    TGles2Fns::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-
-    TGles2Fns::glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, mRenderTextureId, 0);
+	tex.createEmpty(w, h);
 
     if (depth)
     {

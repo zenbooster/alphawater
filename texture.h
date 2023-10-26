@@ -5,8 +5,31 @@
 
 class Texture
 {
+private:
+    GLenum mTarget;
+    GLenum mWrapMode;
+	GLenum mFilterMode;
+    bool mVFlip;
+    //bool msRGB;
+    GLuint mTextureId;
+	bool mLoaded;
+
+    GLint mWidth, mHeight, mDepth;
+	
+	void set_params(void);
+
+protected:
+    void loadPixels(GLubyte *pixels, GLint w, GLint h, GLint depth, GLint channels, bool isFloat, GLint cubemapLayer);
+
 public:
-    Texture(GLenum target, GLenum wrapMode, GLenum filterMode, bool vFilp, bool sRGB);
+	enum TEnumResizeContent
+	{
+		ercNone,
+		ercFromBottomLeft,
+		ercFromCenter
+	};
+
+    Texture(GLenum target, GLenum wrapMode, GLenum filterMode, bool vFlip);//, bool sRGB);
     Texture(GLenum target, const std::string &filename);
     ~Texture();
 
@@ -14,6 +37,7 @@ public:
     void loadFromePixels(GLubyte *pixels, GLint w, GLint h, GLint depth, GLint channels, bool isFloat);
 
     void createEmpty(GLint w, GLint h);
+	void resize(int w, int h, TEnumResizeContent erc = ercNone);
 
     void bindToChannel(GLint channel);
     void release();
@@ -27,21 +51,6 @@ public:
     bool isLoaded() const { return mLoaded; }
 
     GLuint textureId() const { return mTextureId; }
-
-protected:
-    void loadPixels(GLubyte *pixels, GLint w, GLint h, GLint depth, GLint channels, bool isFloat, GLint cubemapLayer);
-
-private:
-    GLenum mTarget;
-    GLenum mFilterMode;
-    GLenum mWrapMode;
-
-    GLuint mTextureId;
-    GLint mWidth, mHeight, mDepth;
-
-    bool mVFlip;
-    bool msRGB;
-    bool mLoaded;
 };
 
 #endif // GL_TEXTURE_H

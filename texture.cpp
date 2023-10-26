@@ -1,29 +1,33 @@
 #include "common.h"
 #include "texture.h"
-
 #include <string.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 #include "stb_image_write.h"
+#pragma GCC diagnostic push
 
-Texture::Texture(GLenum target, GLenum wrapMode, GLenum filterMode, bool vFlip, bool sRGB)
+#include "TGles2Fns.h"
+
+Texture::Texture(GLenum target, GLenum wrapMode, GLenum filterMode, bool vFlip)//, bool sRGB)
     : mTarget(target),
       mWrapMode(wrapMode),
       mFilterMode(filterMode),
       mVFlip(vFlip),
-      msRGB(sRGB),
+      //msRGB(sRGB),
       mTextureId(0),
       mLoaded(false)
 {
-    glGenTextures(1, &mTextureId);
+    TGles2Fns::glGenTextures(1, &mTextureId);
 }
 
 Texture::~Texture()
 {
-    glDeleteTextures(1, &mTextureId);
+    TGles2Fns::glDeleteTextures(1, &mTextureId);
 }
 
 void Texture::loadFromFile(const char*filename)
@@ -53,16 +57,86 @@ void Texture::loadFromePixels(GLubyte *pixels, int w, int h, int depth, int chan
 
 void Texture::createEmpty(int w, int h)
 {
-    glBindTexture(GL_TEXTURE_2D, mTextureId);
-    glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, w, h);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
-                           mTextureId, 0);
+    TGles2Fns::glBindTexture(GL_TEXTURE_2D, mTextureId);
+    TGles2Fns::glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, w, h);
+	//TGles2Fns::glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    TGles2Fns::glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, mTextureId, 0);
 
     mWidth = w;
     mHeight = h;
     mDepth = 1;
 
+	set_params();
+}
 
+void Texture::resize(int w, int h, TEnumResizeContent erc)
+{
+	TGles2Fns::glReadBuffer(GL_COLOR_ATTACHMENT0);
+
+	GLuint mNewTextureId;
+	TGles2Fns::glGenTextures(1, &mNewTextureId);
+	GLint i_active;
+	TGles2Fns::glGetIntegerv(GL_ACTIVE_TEXTURE, &i_active);
+	TGles2Fns::glActiveTexture(GL_TEXTURE0);
+    TGles2Fns::glBindTexture(GL_TEXTURE_2D, mNewTextureId);
+    //TGles2Fns::glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+	TGles2Fns::glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, w, h);
+	
+	set_params();
+
+	switch (erc)
+	{
+		case ercNone:
+			break;
+
+		case ercFromBottomLeft:
+		{
+			TGles2Fns::glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, min(mWidth, w), min(mHeight, h));
+			break;
+		}
+		
+		case ercFromCenter:
+		{	
+			int x_ofs, y_ofs, x, y, width, height;
+			if(w > mWidth)
+			{
+				width = mWidth;
+				x_ofs = (w - mWidth) >> 1;
+				x = 0;
+			}
+			else
+			{
+				width = w;
+				x_ofs = 0;
+				x = (mWidth - w) >> 1;
+			}
+
+			if(h > mHeight)
+			{
+				height = mHeight;
+				y_ofs = (h - mHeight) >> 1;
+				y = 0;
+			}
+			else
+			{
+				height = h;
+				y_ofs = 0;
+				y = (mHeight - h) >> 1;
+			}
+			TGles2Fns::glCopyTexSubImage2D(GL_TEXTURE_2D, 0, x_ofs, y_ofs, x, y, width, height);
+			
+			break;
+		}
+	}
+
+	TGles2Fns::glActiveTexture(i_active);
+	TGles2Fns::glDeleteTextures(1, &mTextureId);
+	
+	mTextureId = mNewTextureId;
+    TGles2Fns::glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, mTextureId, 0);
+	
+	mWidth = w;
+	mHeight = h;
 }
 
 void Texture::loadPixels(GLubyte *pixels, int w, int h, int depth, int channels, bool isFloat, int cubemapLayer)
@@ -84,20 +158,20 @@ void Texture::loadPixels(GLubyte *pixels, int w, int h, int depth, int channels,
         sourceFormat = GL_RGBA;
     }
 
-    glBindTexture(mTarget, mTextureId);
+    TGles2Fns::glBindTexture(mTarget, mTextureId);
 
     if (mTarget == GL_TEXTURE_CUBE_MAP) {
-        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + cubemapLayer, 0, format, w, h, 0, sourceFormat,
+        TGles2Fns::glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + cubemapLayer, 0, format, w, h, 0, sourceFormat,
                      isFloat ? GL_FLOAT : GL_UNSIGNED_BYTE, pixels);
     } else if (mTarget == GL_TEXTURE_3D) {
-        glTexImage3D(GL_TEXTURE_3D, 0, format, w, h, depth, 0, sourceFormat,
+        TGles2Fns::glTexImage3D(GL_TEXTURE_3D, 0, format, w, h, depth, 0, sourceFormat,
                      isFloat ? GL_FLOAT : GL_UNSIGNED_BYTE, pixels);
     } else {
-        glTexImage2D(GL_TEXTURE_2D, 0, format, w, h, 0, sourceFormat,
+        TGles2Fns::glTexImage2D(GL_TEXTURE_2D, 0, format, w, h, 0, sourceFormat,
                      isFloat ? GL_FLOAT : GL_UNSIGNED_BYTE, pixels);
     }
 
-    glGenerateMipmap(mTarget);
+    TGles2Fns::glGenerateMipmap(mTarget);
 
     mWidth = w;
     mHeight = h;
@@ -106,39 +180,64 @@ void Texture::loadPixels(GLubyte *pixels, int w, int h, int depth, int channels,
     mLoaded = true;
 }
 
-
-void Texture::bindToChannel(int channel)
+void Texture::set_params(void)
 {
-    glActiveTexture(GL_TEXTURE0 + channel);
-    glBindTexture(mTarget, mTextureId);
-
     if (mWrapMode == GL_REPEAT) {
-        glTexParameteri(mTarget, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(mTarget, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        TGles2Fns::glTexParameteri(mTarget, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        TGles2Fns::glTexParameteri(mTarget, GL_TEXTURE_WRAP_T, GL_REPEAT);
         if (mTarget == GL_TEXTURE_CUBE_MAP || mTarget == GL_TEXTURE_3D)
-            glTexParameteri(mTarget, GL_TEXTURE_WRAP_R, GL_REPEAT);
+            TGles2Fns::glTexParameteri(mTarget, GL_TEXTURE_WRAP_R, GL_REPEAT);
     } else {
-        glTexParameteri(mTarget, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(mTarget, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        TGles2Fns::glTexParameteri(mTarget, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        TGles2Fns::glTexParameteri(mTarget, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         if (mTarget == GL_TEXTURE_CUBE_MAP || mTarget == GL_TEXTURE_3D)
-            glTexParameteri(mTarget, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+            TGles2Fns::glTexParameteri(mTarget, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
     }
 
     if (mFilterMode == GL_NEAREST) {
-        glTexParameteri(mTarget, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(mTarget, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        TGles2Fns::glTexParameteri(mTarget, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        TGles2Fns::glTexParameteri(mTarget, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     } else if (mFilterMode == GL_MIPMAP) {
-        glTexParameteri(mTarget, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-        glTexParameteri(mTarget, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        TGles2Fns::glTexParameteri(mTarget, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        TGles2Fns::glTexParameteri(mTarget, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     } else {
-        glTexParameteri(mTarget, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(mTarget, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        TGles2Fns::glTexParameteri(mTarget, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        TGles2Fns::glTexParameteri(mTarget, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    }	
+}
+
+void Texture::bindToChannel(int channel)
+{
+    TGles2Fns::glActiveTexture(GL_TEXTURE0 + channel);
+    TGles2Fns::glBindTexture(mTarget, mTextureId);
+
+    /*if (mWrapMode == GL_REPEAT) {
+        TGles2Fns::glTexParameteri(mTarget, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        TGles2Fns::glTexParameteri(mTarget, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        if (mTarget == GL_TEXTURE_CUBE_MAP || mTarget == GL_TEXTURE_3D)
+            TGles2Fns::glTexParameteri(mTarget, GL_TEXTURE_WRAP_R, GL_REPEAT);
+    } else {
+        TGles2Fns::glTexParameteri(mTarget, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        TGles2Fns::glTexParameteri(mTarget, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        if (mTarget == GL_TEXTURE_CUBE_MAP || mTarget == GL_TEXTURE_3D)
+            TGles2Fns::glTexParameteri(mTarget, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
     }
+
+    if (mFilterMode == GL_NEAREST) {
+        TGles2Fns::glTexParameteri(mTarget, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        TGles2Fns::glTexParameteri(mTarget, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    } else if (mFilterMode == GL_MIPMAP) {
+        TGles2Fns::glTexParameteri(mTarget, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        TGles2Fns::glTexParameteri(mTarget, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    } else {
+        TGles2Fns::glTexParameteri(mTarget, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        TGles2Fns::glTexParameteri(mTarget, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    }*/
 }
 
 void Texture::release()
 {
-    glBindTexture(mTarget, 0);
+    TGles2Fns::glBindTexture(mTarget, 0);
 }
 
 bool Texture::savePixelsToFile(const char *filepath, GLubyte *pixels, GLint w, GLint h, int depth)

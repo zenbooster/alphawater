@@ -296,7 +296,7 @@ void TMyApp::on_size(void)
 
 	for (int i = 0; i < 2; i++)
 	{
-		p_fbo[i]->resize(width, height);
+		p_fbo[i]->resize(width, height, Texture::TEnumResizeContent::ercFromCenter);
 	}
 #endif
 	SDL_GL_MakeCurrent(wnd, NULL);
@@ -378,13 +378,15 @@ void TMyApp::draw(void)
 #ifdef TEST_BUF_A
 	int channel = 0;
 	int i_tex = p_fbo[i_fbo_idx]->textureId();
+	Texture &texture = p_fbo[i_fbo_idx]->texture();
 	i_fbo_idx = (i_fbo_idx + 1) & 1;
 
 	p_fbo[i_fbo_idx]->bind();
 	p_prg_a->bind();
 	
-    TGles2Fns::glActiveTexture(GL_TEXTURE0 + channel);
-	TGles2Fns::glBindTexture(GL_TEXTURE_2D, i_tex);
+    //TGles2Fns::glActiveTexture(GL_TEXTURE0 + channel);
+	//TGles2Fns::glBindTexture(GL_TEXTURE_2D, i_tex);
+	texture.bindToChannel(channel);
 
 	p_prg_a->setUniformValue("iTime", input.iTime);
 	p_prg_a->setUniformValue("iFrame", input.iFrame);
@@ -400,8 +402,9 @@ void TMyApp::draw(void)
 
 #ifdef TEST_BUF_A
 	channel = 0;
-    TGles2Fns::glActiveTexture(GL_TEXTURE0 + channel);
-	TGles2Fns::glBindTexture(GL_TEXTURE_2D, p_fbo[i_fbo_idx]->textureId());
+    //TGles2Fns::glActiveTexture(GL_TEXTURE0 + channel);
+	//TGles2Fns::glBindTexture(GL_TEXTURE_2D, p_fbo[i_fbo_idx]->textureId());
+	p_fbo[i_fbo_idx]->texture().bindToChannel(channel);
 #endif
 
 	p_prg->setUniformValue("iTime", input.iTime);
