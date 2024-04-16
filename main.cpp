@@ -1,4 +1,4 @@
-//#include <windows.h>
+#include <windows.h>
 //#include <scrnsave.h>
 #include <iostream>
 #include <io.h>
@@ -81,19 +81,24 @@ void main() {
 class TMyApp
 {
 	private:
+		static const char caption[];
 		static float quadVerts[];
 	    bool is_fullscreen;
 		bool is_screensaver;
-		GLFWmonitor* mon;
+		int i_mon_cnt;
+		int i_wnd_cnt;
+		GLFWmonitor** mon;
 		int wnd_pos[2], wnd_size[2];
 		
-		GLuint framebuffer;
+		//GLuint framebuffer;
 		unsigned int shaderProgram;
 		GLuint VAO;
-		GLFWwindow* wnd;
-		float f_time;
+		GLFWwindow** wnd;
+		float *pf_time;
 		float lastTime;
 
+		bool is_any_wnd_should_close();
+		void init_wnd(GLFWwindow *wnd, int width, int height);
 		void set_mode(void);
 		void on_size(GLFWwindow* wnd, int width, int height);
 		void on_key(GLFWwindow* wnd, int key, int scancode, int action, int mods);
@@ -112,6 +117,8 @@ class TMyApp
 		void run(void);
 };
 
+const char TMyApp::caption[] = "alphawater";
+
 float TMyApp::quadVerts[] = {
 	-1.0, -1.0,     0.0, 0.0,
 	-1.0, 1.0,      0.0, 1.0,
@@ -122,28 +129,126 @@ float TMyApp::quadVerts[] = {
 	1.0, 1.0,       1.0, 1.0
 };
 
+void TMyApp::init_wnd(GLFWwindow *wnd, int width, int height)
+{
+	glfwSetWindowUserPointer(wnd, this);
+	{
+		auto cb = [](GLFWwindow* wnd, int width, int height)
+		{
+			TMyApp *o = reinterpret_cast<TMyApp *>(glfwGetWindowUserPointer(wnd));
+			o->on_size(wnd, width, height);
+		};
+		glfwSetFramebufferSizeCallback(wnd, cb);
+	}
+	{
+		auto cb = [](GLFWwindow* wnd, int key, int scancode, int action, int mods)
+		{
+			TMyApp *o = reinterpret_cast<TMyApp *>(glfwGetWindowUserPointer(wnd));
+			o->on_key(wnd, key, scancode, action, mods);
+		};	
+		glfwSetKeyCallback(wnd, cb);
+	}
+
+	if(is_screensaver)
+	{
+		{
+			auto cb = [](GLFWwindow* wnd, double xpos, double ypos)
+			{
+				TMyApp *o = reinterpret_cast<TMyApp *>(glfwGetWindowUserPointer(wnd));
+				o->on_mouse_pos(wnd, xpos, ypos);
+			};
+			glfwSetCursorPosCallback(wnd, cb);
+		}
+		{
+			auto cb = [](GLFWwindow* wnd, int button, int action, int mods)
+			{
+				TMyApp *o = reinterpret_cast<TMyApp *>(glfwGetWindowUserPointer(wnd));
+				o->on_mouse_btn(wnd, button, action, mods);
+			};
+			glfwSetMouseButtonCallback(wnd, cb);
+		}
+	}
+
+	glfwMakeContextCurrent(wnd);
+	
+	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+	{
+		wcerr << L"failed to initialize glad with processes " << endl;
+		exit(-1);
+	}
+
+	glGenVertexArrays(1, &VAO);
+	glBindVertexArray(VAO);
+
+	GLuint VBO;
+	glGenBuffers(1, &VBO);
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(quadVerts), quadVerts, GL_STATIC_DRAW);
+
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<void*>(0));
+	glEnableVertexAttribArray(0);
+
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<void*>(2 * sizeof(float)));
+	glEnableVertexAttribArray(1);
+
+	glBindVertexArray(0);
+
+	GLuint framebuffer;
+	glGenFramebuffers(1, &framebuffer);
+	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer); 
+
+	GLuint texColor;
+	glGenTextures(1, &texColor);
+	glBindTexture(GL_TEXTURE_2D, texColor);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texColor, 0);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
 void TMyApp::set_mode(void)
 {
     if (is_fullscreen)
     {
         // backup wnd position and wnd size
-        glfwGetWindowPos(wnd, &wnd_pos[0], &wnd_pos[1] );
-        glfwGetWindowSize(wnd, &wnd_size[0], &wnd_size[1] );
-        
+        glfwGetWindowPos(wnd[0], &wnd_pos[0], &wnd_pos[1] );
+        glfwGetWindowSize(wnd[0], &wnd_size[0], &wnd_size[1] );
+
         // get resolution of monitor
-        const GLFWvidmode * mode = glfwGetVideoMode(mon);
-
+        const GLFWvidmode * mode = glfwGetVideoMode(mon[0]);
         // switch to full screen
-        glfwSetWindowMonitor(wnd, mon, 0, 0, mode->width, mode->height, 0);
+        glfwSetWindowMonitor(wnd[0], mon[0], 0, 0, mode->width, mode->height, 0);
+		glfwSetInputMode(wnd[0], GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 
-		glfwSetInputMode(wnd, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+		i_wnd_cnt = i_mon_cnt;
+		for(int i = 1; i < i_wnd_cnt; i++)
+		{
+			int width;
+			int height;
+
+			mode = glfwGetVideoMode(mon[i]);
+			width = mode->width;
+			height = mode->height;
+
+			wnd[i] = glfwCreateWindow(width, height, caption, mon[i], nullptr);
+			if (!wnd[i])
+			{
+				wcerr << L"failed to create wnd" << endl;
+				exit(-1);
+			}
+
+			glfwSetInputMode(wnd[i], GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+			init_wnd(wnd[i], width, height);
+		}
     }
     else
     {
+		i_wnd_cnt = 1;
         // restore last wnd size and position
-        glfwSetWindowMonitor(wnd, nullptr,  wnd_pos[0], wnd_pos[1], wnd_size[0], wnd_size[1], 0 );
+        glfwSetWindowMonitor(wnd[0], nullptr,  wnd_pos[0], wnd_pos[1], wnd_size[0], wnd_size[1], 0);
 
-		glfwSetInputMode(wnd, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+		glfwSetInputMode(wnd[0], GLFW_CURSOR, GLFW_CURSOR_NORMAL);
     }
 }
 
@@ -215,24 +320,22 @@ void TMyApp::on_mouse_btn(GLFWwindow* wnd, __attribute__((unused)) int button, _
 void TMyApp::draw(void)
 {
 	float now = glfwGetTime();
-	//float delta = 0.001;//now - lastTime;
 	float delta = now - lastTime;
 
 	lastTime = now;
-	f_time += delta;
+	
+	for(int i = 0; i < i_wnd_cnt; i++)
+	{
+		glfwMakeContextCurrent(wnd[i]);
+		pf_time[i] += delta;
 
-	//glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+		glUseProgram(shaderProgram);
+		glUniform1f(glGetUniformLocation(shaderProgram, "fTime"), pf_time[i]);
+		glBindVertexArray(VAO);
+		glDrawArrays(GL_TRIANGLES, 0, 6);
 
-	//glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-	//glClear(GL_COLOR_BUFFER_BIT);
-
-	//glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glUseProgram(shaderProgram);
-	glUniform1f(glGetUniformLocation(shaderProgram, "fTime"), f_time); 
-	glBindVertexArray(VAO);
-	glDrawArrays(GL_TRIANGLES, 0, 6);
-
-	glfwSwapBuffers(wnd);
+		glfwSwapBuffers(wnd[i]);
+	}
 }
 
 inline bool TMyApp::is_preview(void) const
@@ -245,12 +348,14 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
     int width;
     int height;
 	
+	wcout << "HIT.1" << endl;
+	
 	this->is_screensaver = is_screensaver;
 	this->is_fullscreen = is_fullscreen;
 
 	glm::vec2 screen(1, 1);
 
-	f_time = 1.0f;
+	//pf_time = 1.0f;
 
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -263,141 +368,99 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 		glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
 	}
 
-	const char caption[] = "alphawater";
+	mon = glfwGetMonitors(&i_mon_cnt);
+	wcout << i_mon_cnt << L" monitors found." << endl;
+	wnd = new GLFWwindow * [i_mon_cnt];
+	pf_time = new float[i_mon_cnt];
+	for(int i = 0; i < i_mon_cnt; i++)
+	{
+		pf_time[i] = rand() % 1000;
+	}
 	
-	mon =  glfwGetPrimaryMonitor();
 	if (is_fullscreen)
 	{
-		const GLFWvidmode* mode = glfwGetVideoMode(mon);
-		width = mode->width;
-		height = mode->height;
-		wnd = glfwCreateWindow(width, height, caption, mon, nullptr);
+		i_wnd_cnt = i_mon_cnt;
+		for(int i = i_wnd_cnt - 1; i >= 0; i--)
+		{
+			const GLFWvidmode* mode = glfwGetVideoMode(mon[i]);
+			width = mode->width;
+			height = mode->height;
+			wcout << "mon[" << to_wstring(i) << "] = " << to_wstring((unsigned long long)mon[i]) << endl;
+			wnd[i] = glfwCreateWindow(width, height, caption, mon[i], nullptr);
+			if (!wnd[i])
+			{
+				wcerr << L"failed to create wnd" << endl;
+				exit(-1);
+			}
 
-		glfwSetInputMode(wnd, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
-		
-		int dt = 100;
-		wnd_pos[0] = dt;
-		wnd_pos[1] = dt;
-		dt <<= 1;
-		wnd_size[0] = width - dt;
-		wnd_size[1] = height - dt;
+			glfwSetInputMode(wnd[i], GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+		}
+
+		if(i_wnd_cnt > 0)
+		{
+			int dt = 100;
+			wnd_pos[0] = dt;
+			wnd_pos[1] = dt;
+			dt <<= 1;
+			wnd_size[0] = width - dt;
+			wnd_size[1] = height - dt;
+		}
 	}
 	else
 	{
+		i_wnd_cnt = 1;
 		width = 200;
 		height = 200;
-		wnd = glfwCreateWindow(width, height, caption, nullptr, nullptr);
-
-        glfwGetWindowSize(wnd, &wnd_size[0], &wnd_size[1]);
-        glfwGetWindowPos(wnd, &wnd_pos[0], &wnd_pos[1]);
-	}
-
-    if (!wnd)
-    {
-        wcerr << L"failed to create wnd" << endl;
-        exit(-1);
-    }
-
-	glfwSetWindowUserPointer(wnd, this);	
-	{
-		auto cb = [](GLFWwindow* wnd, int width, int height)
+		
+		for(int i = i_wnd_cnt - 1; i >= 0; i--)
 		{
-			TMyApp *o = reinterpret_cast<TMyApp *>(glfwGetWindowUserPointer(wnd));
-			o->on_size(wnd, width, height);
-		};
-		glfwSetFramebufferSizeCallback(wnd, cb);
-	}
-	{
-		auto cb = [](GLFWwindow* wnd, int key, int scancode, int action, int mods)
-		{
-			TMyApp *o = reinterpret_cast<TMyApp *>(glfwGetWindowUserPointer(wnd));
-			o->on_key(wnd, key, scancode, action, mods);
-		};	
-		glfwSetKeyCallback(wnd, cb);
-	}
-
-	if(is_screensaver)
-	{
-		{
-			auto cb = [](GLFWwindow* wnd, double xpos, double ypos)
+			string cap = caption;
+			cap += " ";
+			cap += to_string(i);
+			//wnd[i] = glfwCreateWindow(width, height, caption, nullptr, nullptr);
+			wnd[i] = glfwCreateWindow(width, height, cap.c_str(), nullptr, nullptr);
+			if (!wnd[i])
 			{
-				TMyApp *o = reinterpret_cast<TMyApp *>(glfwGetWindowUserPointer(wnd));
-				o->on_mouse_pos(wnd, xpos, ypos);
-			};
-			glfwSetCursorPosCallback(wnd, cb);
+				wcerr << L"failed to create wnd" << endl;
+				exit(-1);
+			}
 		}
-		{
-			auto cb = [](GLFWwindow* wnd, int button, int action, int mods)
-			{
-				TMyApp *o = reinterpret_cast<TMyApp *>(glfwGetWindowUserPointer(wnd));
-				o->on_mouse_btn(wnd, button, action, mods);
-			};
-			glfwSetMouseButtonCallback(wnd, cb);
-		}
+
+        glfwGetWindowSize(wnd[0], &wnd_size[0], &wnd_size[1]);
+        glfwGetWindowPos(wnd[0], &wnd_pos[0], &wnd_pos[1]);
 	}
 
-    glfwMakeContextCurrent(wnd);
-	
-    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
-    {
-        wcerr << L"failed to initialize glad with processes " << endl;
-        exit(-1);
-    }
+	for(int i = i_wnd_cnt - 1; i >= 0; i--)
+	{
+		//MessageBoxA(NULL, "debug", "HIT.1", MB_OK);
+		init_wnd(wnd[i], width, height);
 
-    glGenVertexArrays(1, &VAO);
-    glBindVertexArray(VAO);
+		//vertex shader
+		unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
+		glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
+		glCompileShader(vertexShader);
 
-    GLuint VBO;
-    glGenBuffers(1, &VBO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVerts), quadVerts, GL_STATIC_DRAW);
+		// fragment shader
+		unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+		glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
+		glCompileShader(fragmentShader);
+		// check for shader compile errors
 
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<void*>(0));
-    glEnableVertexAttribArray(0);
+		// link shaders
+		shaderProgram = glCreateProgram();
+		glAttachShader(shaderProgram, vertexShader);
+		glAttachShader(shaderProgram, fragmentShader);
+		glLinkProgram(shaderProgram);
+		// check for linking errors
 
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<void*>(2 * sizeof(float)));
-    glEnableVertexAttribArray(1);
+		glDeleteShader(vertexShader);
+		glDeleteShader(fragmentShader);
 
-    glBindVertexArray(0);
+		glUseProgram(shaderProgram);
+		glUniform2fv(glGetUniformLocation(shaderProgram, "iResolution"), 1, &screen[0]);
 
-    glGenFramebuffers(1, &framebuffer);
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer); 
-
-    GLuint texColor;
-    glGenTextures(1, &texColor);
-    glBindTexture(GL_TEXTURE_2D, texColor);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texColor, 0);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-
-    //vertex shader
-    unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
-    glCompileShader(vertexShader);
-
-    // fragment shader
-    unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
-    glCompileShader(fragmentShader);
-    // check for shader compile errors
-
-    // link shaders
-    shaderProgram = glCreateProgram();
-    glAttachShader(shaderProgram, vertexShader);
-    glAttachShader(shaderProgram, fragmentShader);
-    glLinkProgram(shaderProgram);
-    // check for linking errors
-
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
-
-    glUseProgram(shaderProgram);
-	glUniform2fv(glGetUniformLocation(shaderProgram, "iResolution"), 1, &screen[0]);
-
-    lastTime = glfwGetTime();
+		lastTime = glfwGetTime();
+	}
 }
 
 void TMyApp::show_usage(void)
@@ -423,7 +486,7 @@ TMyApp::TMyApp(int argc, char *argv[])
 
 				char *s_ptr = argv[2];
 				HWND h_wnd_parent = (HWND)stoull(s_ptr, nullptr, 10);
-				HWND h_wnd = glfwGetWin32Window(wnd);
+				HWND h_wnd = glfwGetWin32Window(wnd[0]);
 				SetParent(h_wnd, h_wnd_parent);
 				SetWindowLong(h_wnd, GWL_STYLE, WS_VISIBLE | WS_CHILD | WS_CLIPCHILDREN);
 				RECT rc;
@@ -469,9 +532,24 @@ TMyApp::~TMyApp()
     // cleanup
 }
 
+bool TMyApp::is_any_wnd_should_close()
+{
+	bool res = false;
+
+	for(int i = i_wnd_cnt - 1; i >= 0; i--)
+	{
+		if(glfwWindowShouldClose(wnd[i]))
+		{
+			res = true;
+			break;
+		}
+	}
+	return res;
+}
+
 void TMyApp::run(void)
 {
-    while (!glfwWindowShouldClose(wnd))
+    while (!is_any_wnd_should_close())
     {
 		draw();
         glfwPollEvents();
@@ -481,9 +559,17 @@ void TMyApp::run(void)
 int main(int argc, char *argv[])
 {
 	int res;
-	
-    _setmode(_fileno(stdout), _O_U16TEXT);
-    _setmode(_fileno(stderr), _O_U16TEXT);
+
+	if(AttachConsole(ATTACH_PARENT_PROCESS))
+	{
+		freopen("CON", "w", stdout);
+		freopen("CON", "r", stdin);
+		freopen("CON", "w", stderr);
+		cout << endl;
+		
+		_setmode(_fileno(stdout), _O_U16TEXT);
+		_setmode(_fileno(stderr), _O_U16TEXT);
+	}
 
 	try
 	{
@@ -495,6 +581,6 @@ int main(int argc, char *argv[])
 	{
 		res = 1;
 	}
-
+	
 	return res;
 }
