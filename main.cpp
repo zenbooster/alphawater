@@ -1,6 +1,8 @@
 #include <windows.h>
 //#include <scrnsave.h>
 #include <iostream>
+#include <string>
+#include <vector>
 #include <io.h>
 #include <fcntl.h>
 #include <glad/glad.h>
@@ -78,9 +80,27 @@ void main() {
     fragColor = color;
 })";
 
+std::string ConvertUTF8To866(const std::string& str)
+{
+    int len = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, NULL, 0);
+    wchar_t* wstr = new wchar_t[len];
+    MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, wstr, len);
+
+    len = WideCharToMultiByte(866, 0, wstr, -1, NULL, 0, NULL, NULL);
+    char* cp1251 = new char[len];
+    WideCharToMultiByte(866, 0, wstr, -1, cp1251, len, NULL, NULL);
+
+    std::string result(cp1251);
+    delete[] wstr;
+    delete[] cp1251;
+
+    return result;
+}
+
 class TMyApp
 {
 	private:
+		static const glm::vec2 screen;
 		static const char caption[];
 		static float quadVerts[];
 	    bool is_fullscreen;
@@ -116,6 +136,8 @@ class TMyApp
 		
 		void run(void);
 };
+
+const glm::vec2 TMyApp::screen(1, 1);
 
 const char TMyApp::caption[] = "alphawater";
 
@@ -173,7 +195,7 @@ void TMyApp::init_wnd(GLFWwindow *wnd, int width, int height)
 	
 	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
 	{
-		wcerr << L"failed to initialize glad with processes " << endl;
+		cerr << "failed to initialize glad with processes" << endl;
 		exit(-1);
 	}
 
@@ -205,6 +227,31 @@ void TMyApp::init_wnd(GLFWwindow *wnd, int width, int height)
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texColor, 0);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	////////
+	//vertex shader
+	unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
+	glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
+	glCompileShader(vertexShader);
+
+	// fragment shader
+	unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+	glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
+	glCompileShader(fragmentShader);
+	// check for shader compile errors
+
+	// link shaders
+	shaderProgram = glCreateProgram();
+	glAttachShader(shaderProgram, vertexShader);
+	glAttachShader(shaderProgram, fragmentShader);
+	glLinkProgram(shaderProgram);
+	// check for linking errors
+
+	glDeleteShader(vertexShader);
+	glDeleteShader(fragmentShader);
+
+	glUseProgram(shaderProgram);
+	glUniform2fv(glGetUniformLocation(shaderProgram, "iResolution"), 1, &screen[0]);
 }
 
 void TMyApp::set_mode(void)
@@ -234,7 +281,7 @@ void TMyApp::set_mode(void)
 			wnd[i] = glfwCreateWindow(width, height, caption, mon[i], nullptr);
 			if (!wnd[i])
 			{
-				wcerr << L"failed to create wnd" << endl;
+				cerr << "failed to create wnd" << endl;
 				exit(-1);
 			}
 
@@ -244,6 +291,12 @@ void TMyApp::set_mode(void)
     }
     else
     {
+		for(int i = 1; i < i_wnd_cnt; i++)
+		{
+			glfwDestroyWindow(wnd[i]);
+			wnd[i] = NULL;
+		}
+
 		i_wnd_cnt = 1;
         // restore last wnd size and position
         glfwSetWindowMonitor(wnd[0], nullptr,  wnd_pos[0], wnd_pos[1], wnd_size[0], wnd_size[1], 0);
@@ -348,20 +401,15 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
     int width;
     int height;
 	
-	wcout << "HIT.1" << endl;
-	
 	this->is_screensaver = is_screensaver;
 	this->is_fullscreen = is_fullscreen;
-
-	glm::vec2 screen(1, 1);
-
-	//pf_time = 1.0f;
 
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
+	glfwWindowHint(GLFW_AUTO_ICONIFY, GLFW_FALSE);
 
 	if(!is_visible)
 	{
@@ -369,7 +417,7 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 	}
 
 	mon = glfwGetMonitors(&i_mon_cnt);
-	wcout << i_mon_cnt << L" monitors found." << endl;
+	cout << i_mon_cnt << " monitors found." << endl;
 	wnd = new GLFWwindow * [i_mon_cnt];
 	pf_time = new float[i_mon_cnt];
 	for(int i = 0; i < i_mon_cnt; i++)
@@ -385,11 +433,11 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 			const GLFWvidmode* mode = glfwGetVideoMode(mon[i]);
 			width = mode->width;
 			height = mode->height;
-			wcout << "mon[" << to_wstring(i) << "] = " << to_wstring((unsigned long long)mon[i]) << endl;
+			cout << "mon[" << i << "] = " << mon[i] << endl;
 			wnd[i] = glfwCreateWindow(width, height, caption, mon[i], nullptr);
 			if (!wnd[i])
 			{
-				wcerr << L"failed to create wnd" << endl;
+				cerr << "failed to create wnd" << endl;
 				exit(-1);
 			}
 
@@ -421,7 +469,7 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 			wnd[i] = glfwCreateWindow(width, height, cap.c_str(), nullptr, nullptr);
 			if (!wnd[i])
 			{
-				wcerr << L"failed to create wnd" << endl;
+				cerr << "failed to create wnd" << endl;
 				exit(-1);
 			}
 		}
@@ -435,43 +483,23 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 		//MessageBoxA(NULL, "debug", "HIT.1", MB_OK);
 		init_wnd(wnd[i], width, height);
 
-		//vertex shader
-		unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
-		glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
-		glCompileShader(vertexShader);
-
-		// fragment shader
-		unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-		glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
-		glCompileShader(fragmentShader);
-		// check for shader compile errors
-
-		// link shaders
-		shaderProgram = glCreateProgram();
-		glAttachShader(shaderProgram, vertexShader);
-		glAttachShader(shaderProgram, fragmentShader);
-		glLinkProgram(shaderProgram);
-		// check for linking errors
-
-		glDeleteShader(vertexShader);
-		glDeleteShader(fragmentShader);
-
-		glUseProgram(shaderProgram);
-		glUniform2fv(glGetUniformLocation(shaderProgram, "iResolution"), 1, &screen[0]);
-
 		lastTime = glfwGetTime();
+		
+		//glfwMaximizeWindow(wnd[i]);
 	}
 }
 
 void TMyApp::show_usage(void)
 {
-	wcout << L"Неверные параметры!\n"
-			L"Использование:\n"
-			L"alphawater.exe [/c] | [/p <HWND>] | [/s]\n"
-			L"\t/c             - показать диалог настроек\n"
-			L"\t/p <HWND>      - предпросмотр в окне, дочернем по отношению к <HWND>\n"
-			L"\t/s             - запуск в полноэкранном режиме\n\n"
-			L"\tБез параметров - запуск в оконном режиме." << endl;
+	string s = "Неверные параметры!\n"
+			"Использование:\n"
+			"alphawater.exe [/c] | [/p <HWND>] | [/s]\n"
+			"\t/c             - показать диалог настроек\n"
+			"\t/p <HWND>      - предпросмотр в окне, дочернем по отношению к <HWND>\n"
+			"\t/s             - запуск в полноэкранном режиме\n\n"
+			"\tБез параметров - запуск в оконном режиме.";
+			
+	cout << ConvertUTF8To866(s) << endl;
 }
 
 TMyApp::TMyApp(int argc, char *argv[])
@@ -495,7 +523,7 @@ TMyApp::TMyApp(int argc, char *argv[])
 			}
 			else
 			{
-				//show_usage();
+				show_usage();
 				throw exception();
 			}
 			break;
@@ -513,7 +541,7 @@ TMyApp::TMyApp(int argc, char *argv[])
 			}
 			else
 			{
-				//show_usage();
+				show_usage();
 				throw exception();
 			}
 			break;
@@ -528,6 +556,7 @@ TMyApp::TMyApp(int argc, char *argv[])
 
 TMyApp::~TMyApp()
 {
+	cout << "exit" << endl;
     glfwTerminate();
     // cleanup
 }
@@ -566,9 +595,6 @@ int main(int argc, char *argv[])
 		freopen("CON", "r", stdin);
 		freopen("CON", "w", stderr);
 		cout << endl;
-		
-		_setmode(_fileno(stdout), _O_U16TEXT);
-		_setmode(_fileno(stderr), _O_U16TEXT);
 	}
 
 	try
