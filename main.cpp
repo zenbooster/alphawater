@@ -80,30 +80,15 @@ void main() {
     fragColor = color;
 })";
 
-std::string ConvertUTF8To866(const std::string& str)
-{
-    int len = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, NULL, 0);
-    wchar_t* wstr = new wchar_t[len];
-    MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, wstr, len);
-
-    len = WideCharToMultiByte(866, 0, wstr, -1, NULL, 0, NULL, NULL);
-    char* cp1251 = new char[len];
-    WideCharToMultiByte(866, 0, wstr, -1, cp1251, len, NULL, NULL);
-
-    std::string result(cp1251);
-    delete[] wstr;
-    delete[] cp1251;
-
-    return result;
-}
-
 class TMyApp
 {
 	private:
 		static const glm::vec2 screen;
 		static const char caption[];
 		static float quadVerts[];
-	    bool is_fullscreen;
+		bool is_parent_console;
+		uint32_t con_cp;
+		bool is_fullscreen;
 		bool is_screensaver;
 		int i_mon_cnt;
 		int i_wnd_cnt;
@@ -116,7 +101,8 @@ class TMyApp
 		GLFWwindow** wnd;
 		float *pf_time;
 		float lastTime;
-
+		
+		string ConvertUTF8ToCp(const string& str);
 		bool is_any_wnd_should_close();
 		void init_wnd(GLFWwindow *wnd, int width, int height);
 		void set_mode(void);
@@ -135,7 +121,7 @@ class TMyApp
 		~TMyApp();
 		
 		void run(void);
-};
+}; // class TMyApp
 
 const glm::vec2 TMyApp::screen(1, 1);
 
@@ -150,6 +136,23 @@ float TMyApp::quadVerts[] = {
 	-1.0, 1.0,      0.0, 1.0,
 	1.0, 1.0,       1.0, 1.0
 };
+
+string TMyApp::ConvertUTF8ToCp(const string& str)
+{
+    int len = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, NULL, 0);
+    wchar_t* wstr = new wchar_t[len];
+    MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, wstr, len);
+
+    len = WideCharToMultiByte(con_cp, 0, wstr, -1, NULL, 0, NULL, NULL);
+    char* s = new char[len];
+    WideCharToMultiByte(con_cp, 0, wstr, -1, s, len, NULL, NULL);
+
+    std::string result(s);
+    delete[] wstr;
+    delete[] s;
+
+    return result;
+}
 
 void TMyApp::init_wnd(GLFWwindow *wnd, int width, int height)
 {
@@ -499,11 +502,23 @@ void TMyApp::show_usage(void)
 			"\t/s             - запуск в полноэкранном режиме\n\n"
 			"\tБез параметров - запуск в оконном режиме.";
 			
-	cout << ConvertUTF8To866(s) << endl;
+	cout << ConvertUTF8ToCp(s) << endl;
 }
 
 TMyApp::TMyApp(int argc, char *argv[])
 {
+	is_parent_console = AttachConsole(ATTACH_PARENT_PROCESS);
+
+	if(is_parent_console)
+	{
+		freopen("CON", "w", stdout);
+		freopen("CON", "r", stdin);
+		freopen("CON", "w", stderr);
+		cout << endl;
+		
+		con_cp = GetConsoleCP();
+	}
+
 	switch(argc)
 	{
 		case 1 + 2:
@@ -557,6 +572,13 @@ TMyApp::TMyApp(int argc, char *argv[])
 TMyApp::~TMyApp()
 {
 	cout << "exit" << endl;
+	
+	if(is_parent_console)
+	{
+		//MessageBoxA(NULL, to_string(FreeConsole()).c_str(), "debug", MB_OK);
+		FreeConsole();
+	}
+
     glfwTerminate();
     // cleanup
 }
@@ -588,14 +610,6 @@ void TMyApp::run(void)
 int main(int argc, char *argv[])
 {
 	int res;
-
-	if(AttachConsole(ATTACH_PARENT_PROCESS))
-	{
-		freopen("CON", "w", stdout);
-		freopen("CON", "r", stdin);
-		freopen("CON", "w", stderr);
-		cout << endl;
-	}
 
 	try
 	{
