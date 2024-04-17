@@ -516,7 +516,7 @@ TMyApp::TMyApp(int argc, char *argv[])
 		freopen("CON", "w", stderr);
 		cout << endl;
 		
-		con_cp = GetConsoleCP();
+		con_cp = GetConsoleOutputCP();
 	}
 
 	switch(argc)
