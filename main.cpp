@@ -310,8 +310,13 @@ void TMyApp::set_mode(void)
 
 void TMyApp::on_size(__attribute__((unused)) GLFWwindow* wnd, int width, int height)
 {
+	glfwMakeContextCurrent(wnd);
     glViewport(0, 0, width, height);
-    draw();
+	
+	if(!is_fullscreen)
+	{
+		draw();
+	}
 }
 
 void TMyApp::on_key(GLFWwindow* wnd, int key, __attribute__((unused)) int scancode, int action, int mods)
