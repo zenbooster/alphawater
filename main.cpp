@@ -159,6 +159,39 @@ void mainImage(out vec4 o, vec2 u)
 )";
 #endif
 
+class TMyAppWnd
+{
+private:
+	GLFWwindow *wnd;
+	ShaderInput input;
+
+	ShaderProgram *p_prg;
+#ifdef TEST_BUF_A
+	ShaderProgram *p_prg_a;
+#endif
+
+	VertexArrayObject *p_vao;
+	BufferObject *p_vbo_arr;
+	BufferObject *p_vbo_idx;
+
+#ifdef TEST_BUF_A
+	FrameBuffer *p_fbo[2];
+	int i_fbo_idx;
+#endif
+
+
+	void initilizeUniformValue(int width, int height);
+	void init_wnd(int width, int height);
+	void on_size(int width, int height);
+	void on_key(int key, int scancode, int action, int mods);
+	void on_mouse_pos(double xpos, double ypos);
+	void on_mouse_btn(int button, int action, int mods);
+	
+public:
+	TMyAppWnd(int width, int height, string caption, GLFWmonitor *mon = nullptr);
+	void draw(void);
+}
+
 class TMyApp
 {
 	private:
@@ -174,39 +207,14 @@ class TMyApp
 		int i_wnd_cnt;
 		GLFWmonitor** mon;
 		int wnd_pos[2], wnd_size[2];
-		
-		//unsigned int shaderProgram;
-		ShaderProgram *p_prg;
-	#ifdef TEST_BUF_A
-		ShaderProgram *p_prg_a;
-	#endif
 
-		//GLuint VAO;
-		
-		ShaderInput input;
-		VertexArrayObject *p_vao;
-		BufferObject *p_vbo_arr;
-		BufferObject *p_vbo_idx;
-
-	#ifdef TEST_BUF_A
-		FrameBuffer *p_fbo[2];
-		int i_fbo_idx;
-	#endif
-		
-		GLFWwindow** wnd;
-		float *pf_time;
+		TMyAppWnd** wnd;
+		//float *pf_time;
 		float lastTime;
-		
-		void initilizeUniformValue(int width, int height);
-		
+
 		string ConvertUTF8ToCp(const string& str);
 		bool is_any_wnd_should_close();
-		void init_wnd(GLFWwindow *wnd, int width, int height);
 		void set_mode(void);
-		void on_size(GLFWwindow* wnd, int width, int height);
-		void on_key(GLFWwindow* wnd, int key, int scancode, int action, int mods);
-		void on_mouse_pos(GLFWwindow* wnd, double xpos, double ypos);
-		void on_mouse_btn(GLFWwindow* wnd, int button, int action, int mods);
 		void draw(void);
 		inline bool is_preview(void) const;
 		void init(bool is_screensaver, bool is_fullscreen, bool is_visible);
@@ -236,7 +244,21 @@ GLuint TMyApp::indices[] = {
     0, 2, 3
 };
 
-void TMyApp::initilizeUniformValue(int width, int height)
+TMyAppWnd::TMyAppWnd(int width, int height, string caption, GLFWmonitor *mon)
+{
+	wnd = glfwCreateWindow(width, height, caption, mon, nullptr);
+	if (!wnd)
+	{
+		throw invalid_argument("failed to create wnd");
+	}
+
+	if(mon)
+	{
+		glfwSetInputMode(wnd, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+	}
+}
+
+void TMyAppWnd::initilizeUniformValue(int width, int height)
 {
     input.iResolution  = glm::vec3(width, height, 1.0f);
     input.iTime        = 0.0f;
@@ -280,22 +302,22 @@ string TMyApp::ConvertUTF8ToCp(const string& str)
     return result;
 }
 
-void TMyApp::init_wnd(GLFWwindow *wnd, int width, int height)
+void TMyAppWnd::init_wnd(int width, int height)
 {
 	glfwSetWindowUserPointer(wnd, this);
 	{
 		auto cb = [](GLFWwindow* wnd, int width, int height)
 		{
-			TMyApp *o = reinterpret_cast<TMyApp *>(glfwGetWindowUserPointer(wnd));
-			o->on_size(wnd, width, height);
+			TMyAppWnd *o = reinterpret_cast<TMyAppWnd *>(glfwGetWindowUserPointer(wnd));
+			o->on_size(width, height);
 		};
 		glfwSetFramebufferSizeCallback(wnd, cb);
 	}
 	{
 		auto cb = [](GLFWwindow* wnd, int key, int scancode, int action, int mods)
 		{
-			TMyApp *o = reinterpret_cast<TMyApp *>(glfwGetWindowUserPointer(wnd));
-			o->on_key(wnd, key, scancode, action, mods);
+			TMyAppWnd *o = reinterpret_cast<TMyAppWnd *>(glfwGetWindowUserPointer(wnd));
+			o->on_key(key, scancode, action, mods);
 		};	
 		glfwSetKeyCallback(wnd, cb);
 	}
@@ -305,16 +327,16 @@ void TMyApp::init_wnd(GLFWwindow *wnd, int width, int height)
 		{
 			auto cb = [](GLFWwindow* wnd, double xpos, double ypos)
 			{
-				TMyApp *o = reinterpret_cast<TMyApp *>(glfwGetWindowUserPointer(wnd));
-				o->on_mouse_pos(wnd, xpos, ypos);
+				TMyAppWnd *o = reinterpret_cast<TMyAppWnd *>(glfwGetWindowUserPointer(wnd));
+				o->on_mouse_pos(xpos, ypos);
 			};
 			glfwSetCursorPosCallback(wnd, cb);
 		}
 		{
 			auto cb = [](GLFWwindow* wnd, int button, int action, int mods)
 			{
-				TMyApp *o = reinterpret_cast<TMyApp *>(glfwGetWindowUserPointer(wnd));
-				o->on_mouse_btn(wnd, button, action, mods);
+				TMyAppWnd *o = reinterpret_cast<TMyAppWnd *>(glfwGetWindowUserPointer(wnd));
+				o->on_mouse_btn(button, action, mods);
 			};
 			glfwSetMouseButtonCallback(wnd, cb);
 		}
@@ -328,60 +350,6 @@ void TMyApp::init_wnd(GLFWwindow *wnd, int width, int height)
 		exit(-1);
 	}
 
-	/*glGenVertexArrays(1, &VAO);
-	glBindVertexArray(VAO);
-
-	GLuint VBO;
-	glGenBuffers(1, &VBO);
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(quadVerts), quadVerts, GL_STATIC_DRAW);
-
-	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<void*>(0));
-	glEnableVertexAttribArray(0);
-
-	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<void*>(2 * sizeof(float)));
-	glEnableVertexAttribArray(1);
-
-	glBindVertexArray(0);
-
-	GLuint framebuffer;
-	glGenFramebuffers(1, &framebuffer);
-	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer); 
-
-	GLuint texColor;
-	glGenTextures(1, &texColor);
-	glBindTexture(GL_TEXTURE_2D, texColor);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
-	glBindTexture(GL_TEXTURE_2D, 0);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texColor, 0);
-
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-	////////
-	//vertex shader
-	unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
-	glCompileShader(vertexShader);
-
-	// fragment shader
-	unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
-	glCompileShader(fragmentShader);
-	// check for shader compile errors
-
-	// link shaders
-	shaderProgram = glCreateProgram();
-	glAttachShader(shaderProgram, vertexShader);
-	glAttachShader(shaderProgram, fragmentShader);
-	glLinkProgram(shaderProgram);
-	// check for linking errors
-
-	glDeleteShader(vertexShader);
-	glDeleteShader(fragmentShader);
-
-	glUseProgram(shaderProgram);*/
-
-	////////
 	p_vao = new VertexArrayObject();
 	p_vao->create();
 	p_vao->bind();
@@ -506,7 +474,8 @@ void TMyApp::set_mode(void)
 			width = mode->width;
 			height = mode->height;
 
-			wnd[i] = glfwCreateWindow(width, height, caption, mon[i], nullptr);
+			wnd[i] = new TMyAppWnd(width, height, caption, mon[i]);
+			/*wnd[i] = glfwCreateWindow(width, height, caption, mon[i], nullptr);
 			if (!wnd[i])
 			{
 				cerr << "failed to create wnd" << endl;
@@ -514,6 +483,7 @@ void TMyApp::set_mode(void)
 			}
 
 			glfwSetInputMode(wnd[i], GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+			*/
 			
 			on_size(wnd[i], width, height);
 			init_wnd(wnd[i], width, height);
@@ -535,7 +505,7 @@ void TMyApp::set_mode(void)
     }
 }
 
-void TMyApp::on_size(__attribute__((unused)) GLFWwindow* wnd, int width, int height)
+void TMyAppWnd::on_size(int width, int height)
 {
 	cout << "wnd=" << wnd << "; w=" << width << "; h=" << height << endl;
 	glfwMakeContextCurrent(wnd);
@@ -566,7 +536,7 @@ void TMyApp::on_size(__attribute__((unused)) GLFWwindow* wnd, int width, int hei
 	}
 }
 
-void TMyApp::on_key(GLFWwindow* wnd, int key, __attribute__((unused)) int scancode, int action, int mods)
+void TMyAppWnd::on_key(int key, __attribute__((unused)) int scancode, int action, int mods)
 {
 	static bool is_mode_switch = false;
 
@@ -600,7 +570,7 @@ void TMyApp::on_key(GLFWwindow* wnd, int key, __attribute__((unused)) int scanco
 	}
 }
 
-void TMyApp::on_mouse_pos(GLFWwindow* wnd, __attribute__((unused)) double xpos, __attribute__((unused)) double ypos)
+void TMyAppWnd::on_mouse_pos(__attribute__((unused)) double xpos, __attribute__((unused)) double ypos)
 {
 	static bool is_first_run = true;
 	
@@ -617,7 +587,7 @@ void TMyApp::on_mouse_pos(GLFWwindow* wnd, __attribute__((unused)) double xpos, 
 	}
 }
 
-void TMyApp::on_mouse_btn(GLFWwindow* wnd, __attribute__((unused)) int button, __attribute__((unused)) int action, __attribute__((unused)) int mods)
+void TMyAppWnd::on_mouse_btn(__attribute__((unused)) int button, __attribute__((unused)) int action, __attribute__((unused)) int mods)
 {
 	if(is_screensaver && !is_preview())
 	{
@@ -625,70 +595,68 @@ void TMyApp::on_mouse_btn(GLFWwindow* wnd, __attribute__((unused)) int button, _
 	}
 }
 
-void TMyApp::draw(void)
+void TMyAppWnd::draw(void)
 {
 	float now = glfwGetTime();
 	float delta = now - lastTime;
 
 	lastTime = now;
 	
+	glfwMakeContextCurrent(wnd);
+	
+#ifdef TEST_BUF_A
+	int channel = 0;
+	int i_tex = p_fbo[i_fbo_idx]->textureId();
+	shared_ptr<Texture> texture = p_fbo[i_fbo_idx]->texture();
+	i_fbo_idx = (i_fbo_idx + 1) & 1;
+
+	p_fbo[i_fbo_idx]->bind();
+	p_prg_a->bind();
+	
+	//glActiveTexture(GL_TEXTURE0 + channel);
+	//glBindTexture(GL_TEXTURE_2D, i_tex);
+	texture->bindToChannel(channel);
+
+	p_prg_a->setUniformValue("iTime", input.iTime);
+	p_prg_a->setUniformValue("iFrame", input.iFrame);
+	p_vao->bind();
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+	p_vao->release();
+	glBindTexture(GL_TEXTURE_2D, 0);
+	p_prg_a->release();
+	p_fbo[i_fbo_idx]->release();
+#endif	
+
+	p_prg->bind();
+
+#ifdef TEST_BUF_A
+	channel = 0;
+	//glActiveTexture(GL_TEXTURE0 + channel);
+	//glBindTexture(GL_TEXTURE_2D, p_fbo[i_fbo_idx]->textureId());
+	p_fbo[i_fbo_idx]->texture()->bindToChannel(channel);
+#endif
+
+	p_prg->setUniformValue("iTime", input.iTime);
+	p_prg->setUniformValue("iFrame", input.iFrame);
+	p_vao->bind();
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+	p_vao->release();
+#ifdef TEST_BUF_A
+	glBindTexture(GL_TEXTURE_2D, 0);
+#endif
+	p_prg->release();
+
+	glfwSwapBuffers(wnd[i]);
+	
+	input.iTime += delta * ((i & 1) ? -1 : 1);
+	input.iFrame++;
+}
+
+void TMyApp::draw(void)
+{
 	for(int i = 0; i < i_wnd_cnt; i++)
 	{
-		glfwMakeContextCurrent(wnd[i]);
-		//pf_time[i] += delta * ((i & 1) ? -1 : 1);
-
-		/*glUseProgram(shaderProgram);
-		glUniform1f(glGetUniformLocation(shaderProgram, "iTime"), pf_time[i]);
-		glBindVertexArray(VAO);
-		glDrawArrays(GL_TRIANGLES, 0, 6);
-		*/
-		
-	#ifdef TEST_BUF_A
-		int channel = 0;
-		int i_tex = p_fbo[i_fbo_idx]->textureId();
-		shared_ptr<Texture> texture = p_fbo[i_fbo_idx]->texture();
-		i_fbo_idx = (i_fbo_idx + 1) & 1;
-
-		p_fbo[i_fbo_idx]->bind();
-		p_prg_a->bind();
-		
-		//glActiveTexture(GL_TEXTURE0 + channel);
-		//glBindTexture(GL_TEXTURE_2D, i_tex);
-		texture->bindToChannel(channel);
-
-		p_prg_a->setUniformValue("iTime", input.iTime);
-		p_prg_a->setUniformValue("iFrame", input.iFrame);
-		p_vao->bind();
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-		p_vao->release();
-		glBindTexture(GL_TEXTURE_2D, 0);
-		p_prg_a->release();
-		p_fbo[i_fbo_idx]->release();
-	#endif	
-
-		p_prg->bind();
-
-	#ifdef TEST_BUF_A
-		channel = 0;
-		//glActiveTexture(GL_TEXTURE0 + channel);
-		//glBindTexture(GL_TEXTURE_2D, p_fbo[i_fbo_idx]->textureId());
-		p_fbo[i_fbo_idx]->texture()->bindToChannel(channel);
-	#endif
-
-		p_prg->setUniformValue("iTime", input.iTime);
-		p_prg->setUniformValue("iFrame", input.iFrame);
-		p_vao->bind();
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-		p_vao->release();
-	#ifdef TEST_BUF_A
-		glBindTexture(GL_TEXTURE_2D, 0);
-	#endif
-		p_prg->release();
-
-		glfwSwapBuffers(wnd[i]);
-		
-		input.iTime += delta * ((i & 1) ? -1 : 1);
-		input.iFrame++;
+		wnd[i].draw();
 	}
 }
 
@@ -719,11 +687,12 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 
 	mon = glfwGetMonitors(&i_mon_cnt);
 	cout << i_mon_cnt << " monitors found." << endl;
-	wnd = new GLFWwindow * [i_mon_cnt];
-	pf_time = new float[i_mon_cnt];
+	//wnd = new GLFWwindow * [i_mon_cnt];
+	wnd = new TMyAppWnd * [i_mon_cnt];
+	//pf_time = new float[i_mon_cnt];
 	for(int i = 0; i < i_mon_cnt; i++)
 	{
-		pf_time[i] = 0; //rand() % 100;
+		//pf_time[i] = 0; //rand() % 100;
 	}
 	
 	if (is_fullscreen)
@@ -735,7 +704,8 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 			width = mode->width;
 			height = mode->height;
 			cout << "mon[" << i << "] = " << mon[i] << endl;
-			wnd[i] = glfwCreateWindow(width, height, caption, mon[i], nullptr);
+			wnd[i] = new TMyAppWnd(width, height, caption, mon[i]);
+			/*wnd[i] = glfwCreateWindow(width, height, caption, mon[i], nullptr);
 			if (!wnd[i])
 			{
 				cerr << "failed to create wnd" << endl;
@@ -743,6 +713,7 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 			}
 
 			glfwSetInputMode(wnd[i], GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+			*/
 		}
 
 		if(i_wnd_cnt > 0)
@@ -766,13 +737,13 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 			string cap = caption;
 			cap += " ";
 			cap += to_string(i);
-			//wnd[i] = glfwCreateWindow(width, height, caption, nullptr, nullptr);
-			wnd[i] = glfwCreateWindow(width, height, cap.c_str(), nullptr, nullptr);
+			wnd[i] = new TMyAppWnd(width, height, caption);
+			/*wnd[i] = glfwCreateWindow(width, height, cap.c_str(), nullptr, nullptr);
 			if (!wnd[i])
 			{
 				cerr << "failed to create wnd" << endl;
 				exit(-1);
-			}
+			}*/
 		}
 
         glfwGetWindowSize(wnd[0], &wnd_size[0], &wnd_size[1]);
