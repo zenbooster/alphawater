@@ -219,6 +219,7 @@ class TMyApp
 		TMyAppWnd** wnd;
 		//float *pf_time;
 		float lastTime;
+		float delta;
 
 		string ConvertUTF8ToCp(const string& str);
 		bool is_any_wnd_should_close();
@@ -498,10 +499,10 @@ void TMyApp::set_mode(void)
 			height = mode->height;
 
 			wnd[i] = new TMyAppWnd(this, width, height, caption, mon[i]);
-			if(i & 1)
+			/*if(i & 1)
 			{
 				wnd[i]->input.iTimeDelta = -wnd[i]->input.iTimeDelta;
-			}
+			}*/
 			wnd[i]->on_size(width, height);
 			//init_wnd(wnd[i], width, height);
 		}
@@ -614,11 +615,6 @@ void TMyAppWnd::on_mouse_btn(__attribute__((unused)) int button, __attribute__((
 
 void TMyAppWnd::draw(void)
 {
-	float now = glfwGetTime();
-	float delta = now - p_app->lastTime;
-
-	p_app->lastTime = now;
-	
 	glfwMakeContextCurrent(wnd);
 	
 #ifdef TEST_BUF_A
@@ -665,12 +661,17 @@ void TMyAppWnd::draw(void)
 
 	glfwSwapBuffers(wnd);
 	
-	input.iTime += input.iTimeDelta * delta;
+	input.iTime += input.iTimeDelta * p_app->delta;
 	input.iFrame++;
 }
 
 void TMyApp::draw(void)
 {
+	float now = glfwGetTime();
+	delta = now - lastTime;
+
+	lastTime = now;
+
 	for(int i = 0; i < i_wnd_cnt; i++)
 	{
 		wnd[i]->draw();
@@ -762,6 +763,7 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 		//init_wnd(wnd[i], width, height);
 
 		lastTime = glfwGetTime();
+		delta = 1.0;
 	//}
 }
 
