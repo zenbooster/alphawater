@@ -18,29 +18,112 @@
 
 #include <GL/gl.h>
 
+#include "common.h"
+#include "shaderprogram.h"
+#include "shaders.h"
+#include "shaderinput.h"
+#include "vertexarrayobject.h"
+#include "bufferobject.h"
+#include "framebuffer.h"
+
+#define TEST_BUF_A
+
 using namespace std;
 
-const char *vertexShaderSource = 
-R"(#version 330 core
-layout (location = 0) in vec2 position;            
-layout (location = 1) in vec2 inTexCoord;
+#ifdef TEST_BUF_A
+const char *fragmentShaderSource = 
+R"(
+// Curling Smoke by Leon Denise 2023-01-19
 
-out vec2 texCoord;
-void main(){
-    texCoord = inTexCoord;
-    gl_Position = vec4(position.x, position.y, 0.0f, 1.0f);
+// finally learnt how to curl noise
+
+// from Pete Werner article:
+// http://petewerner.blogspot.com/2015/02/intro-to-curl-noise.html
+
+
+void mainImage( out vec4 fragColor, in vec2 fragCoord )
+{
+    // coordinates
+    vec2 uv = fragCoord/iResolution.xy;
+   
+    // frame
+    vec3 color = texture(iChannel0, uv).rgb;
+
+    fragColor = vec4(color,1.0);
+}
+)";
+
+const char *fragmentShaderSource_buffer_a = 
+R"(
+
+// Curling Smoke
+
+// finally learnt how to curl noise
+
+// from Pete Werner article:
+// http://petewerner.blogspot.com/2015/02/intro-to-curl-noise.html
+
+#define R iResolution.xy
+float gyroid (vec3 p) { return dot(sin(p),cos(p.yzx)); }
+float noise (vec3 p)
+{
+    float result = 0., a = .5;
+    float count = R.y < 500. ? 6. : 8.;
+    for (float i = 0.; i < count; ++i, a/=2.)
+    {
+        p.z += iTime*.1;//+result*.5;
+        result += abs(gyroid(p/a))*a;
+    }
+    return result;
+}
+
+void mainImage( out vec4 fragColor, in vec2 fragCoord )
+{
+    vec3 color = vec3(0);
+    
+    // coordinates
+    vec2 uv = fragCoord/R.xy;
+    vec2 p = (2.*fragCoord-R.xy)/R.y;
+    vec2 offset = vec2(0);
+    
+    // curl
+    vec2 e = vec2(.01,0);
+    vec3 pos = vec3(p, length(p)*.5);
+    float x = (noise(pos+e.yxy)-noise(pos-e.yxy))/(2.*e.x);
+    float y = (noise(pos+e.xyy)-noise(pos-e.xyy))/(2.*e.x);
+    vec2 curl = vec2(x,-y);
+
+    // force fields
+    offset += curl;
+    offset -= normalize(p) * sin(iTime*2.-length(p)*6.);
+
+    // displace buffer sampler coordinates
+    uv += offset*.002*vec2(R.y/R.x, 1);
+    vec3 frame = texture(iChannel0, uv).rgb;
+    
+    // spawn from edge
+    bool spawn = fragCoord.x < 1. || fragCoord.x > R.x - 1.
+        || fragCoord.y < 1. || fragCoord.y > R.y - 1.;
+    
+    // spawn at first frame
+    spawn = spawn || iFrame < 1;
+    
+    // color palette
+    // https://iquilezles.org/articles/palettes
+    if (spawn) color = .5+.5*cos(vec3(1,2,3)*5.5+iTime+(uv.x+uv.y)*6.);
+    
+    // buffer
+    else color = max(color, frame);
+    
+    fragColor = vec4(color,1.0);
 })";
 
+#else
 const char *fragmentShaderSource = 
-R"(#version 330 core
-in vec2 texCoord;
-uniform vec2      iResolution;
-uniform float     iTime;
-out vec4 fragColor;
-
-/*float M(inout vec3 s, inout vec3 q, float t)
+R"(
+float M(inout vec3 s, inout vec3 q, float t)
 {
-  vec4 v = vec4(0, 33, 55,0);
+  vec4 v = vec4(0, 33, 55, 0);
   vec4 z = cos( v + t*.4);
   mat2 m0 = mat2(z.x, z.y, z.z, z.w);
   z = cos( v + t*.3);
@@ -72,136 +155,17 @@ void mainImage(out vec4 o, vec2 u)
         o *= vec4(.1, .3, .4,0) - vec4(10, 5, 6,0) * (M(s, q, t) - r) / 4.;
     }
     o.a = 1.0;
-}*/
-
-
-// Copyright Kazimierz Pogoda, 2022 - https://xemantic.com/
-// I am the sole copyright owner of this Work.
-// You cannot host, display, distribute or share this Work in any form,
-// including physical and digital. You cannot use this Work in any
-// commercial or non-commercial product, website or project. You cannot
-// sell this Work and you cannot mint an NFTs of it.
-// I share this Work for educational purposes, and you can link to it,
-// through an URL, proper attribution and unmodified screenshot, as part
-// of your educational material. If these conditions are too restrictive
-// please contact me and we'll definitely work it out.
-
-// copyright statement borrowed from Inigo Quilez
-
-/*
-Descripition copied from fx(hash), where this system is mintable in unique
-iterations:
-
-https://www.fxhash.xyz/generative/slug/the-mathematics-of-perception
-
-This system, called The Mathematics of Perception, emerged from a
-series of thought experiments. Our xemantic collective applies philosophy
-to facts about the world. The physics behind sensory experience is already
-deeply researched. But what makes certain experiences evoke certain
-feelings and affectionate states in the broader sense? I want to evoke
-emotions with algorithms. This research is needed for bigger immersive
-installations, using certain aesthetics for telling various narratives.
-However I am not a video artist, I don't cut and transform existing frames.
-I synthesize them with equations. The process can be described as
-sculpting in light and time with math.
-
-Generating video-experience, which is perceptually pleasant, usually
-involves 3D modeling. There is no 3D per se involved in this system, not
-even so called ray marching. It represents an optical illusion of infinitive
-space coded as a single GLSL fragment shader.
-
-It started with a sketch - how to show an unlimited grid of lights,
-overlapping each other in perspective and movement.
-
-Then I added depth of field simulation, to blur the light discs depending
-on perceived distance. Usually generating things "out of focus" is surprisingly
-expensive to compute. Here simplicity of mathematical analytic formula
-came very handy without extra cost.
-
-After depth of field, the simulation of connected chromatic aberration
-followed. This alone is the actual source of color in this system.
-
-By accident I discovered that I can also introduce simulated refractions.
-It's hard to believe how much this simple addition improved the experience.
-The "refraction" is not fully following the physics of perception. It is
-"impossible" on purpose, still believable optical illusion. If you feel
-oniric and escheresque, probably it's thanks to this single line of code.
-
-The waves are important as well. Usually I use trigonometric functions for
-expressing motion. They have this ability of producing oscillation cycles
-we observe everywhere in the physical world. From rocking in our cradles,
-later observing branches of a tree when the wind blows, through experience
-of music, which is unconscious perception of ratios between waves, we relate
-to this kind of swinging movement. This is how we dance.
-
-Each minted variant of this system will have different base parameters and
-motion, providing similar, but unique experience. I hope that due to
-differences, each of them might evoke slightly different emotions.
-Therefore this drop is to please your senses, but also to continue with
-our experiment. After minting each variant please write us back how you
-feel out it.
-
-Kazik Pogoda
-the mother of xemantic
- */
-
-const int ITERATIONS = 15;
-const float PI = 3.14159265359;
-
-mat2 rotate2d(in float angle){
-  return mat2(cos(angle),-sin(angle), sin(angle),cos(angle));
-}
-
-float shape(in vec2 st, in float size, in float blur) {
-  vec2 modSt = mod(st, 1.) * 2. - 1.;
-  float dist = length(modSt);
-  return smoothstep(size + blur, size - blur, dist);
-}
-
-void mainImage(out vec4 fragColor, in vec2 fragCoord) {
-  vec2 st = (2.* fragCoord - iResolution.xy) / min(iResolution.x, iResolution.y);
-
-  vec3 color = vec3(0);
-  float luma = .5;
-  vec2 layerSt = st * (cos(iTime * .115) * .6 + .8);
-  layerSt *= rotate2d(cos(iTime * .023 + 5.) * PI + PI);
-
-  for (int i = 0; i < ITERATIONS; i++) {
-    vec2 gridSt = layerSt + vec2(cos(iTime * .013) * 6. + 6., cos(iTime * .011) * 6. + 6.);
-    layerSt *= rotate2d(-cos(iTime * .0012) * PI + 1.);
-
-    float depth = (float(i) + .5) / float(ITERATIONS);
-    float focusDepth = depth - (cos(iTime * .73) * .5 + .5) * .8 + .1;
-    float blur = .05 + focusDepth * focusDepth * .4;
-
-    float chromaticAberration = cos(iTime * .15) * .2 + .2;
-    float shapeSize = + .3 + cos(iTime * .074) * .2;
-    vec3 shapeColor = vec3(
-      shape(gridSt - st * chromaticAberration * blur, shapeSize, blur),
-      shape(gridSt, shapeSize, blur),
-      shape(gridSt + st * chromaticAberration * blur, shapeSize, blur)
-    ) * luma;
-
-    layerSt += st * shape(gridSt, shapeSize, .5) * cos(iTime * .081) * .6;
-    layerSt *= cos(iTime * .23) * .05 + 1.1;
-    color += shapeColor;
-    luma *= .85;
-  }
-  fragColor = vec4(color, 1.0);
-}
- 
-void main() {
-    vec4 color;
-	mainImage(color, texCoord);
-    fragColor = color;
-})";
+} 
+)";
+#endif
 
 class TMyApp
 {
 	private:
 		static const glm::vec2 screen;
 		static const char caption[];
-		static float quadVerts[];
+		static GLfloat vertices[];
+		static GLuint indices[];
 		bool is_parent_console;
 		uint32_t con_cp;
 		bool is_fullscreen;
@@ -211,12 +175,29 @@ class TMyApp
 		GLFWmonitor** mon;
 		int wnd_pos[2], wnd_size[2];
 		
-		//GLuint framebuffer;
-		unsigned int shaderProgram;
-		GLuint VAO;
+		//unsigned int shaderProgram;
+		ShaderProgram *p_prg;
+	#ifdef TEST_BUF_A
+		ShaderProgram *p_prg_a;
+	#endif
+
+		//GLuint VAO;
+		
+		ShaderInput input;
+		VertexArrayObject *p_vao;
+		BufferObject *p_vbo_arr;
+		BufferObject *p_vbo_idx;
+
+	#ifdef TEST_BUF_A
+		FrameBuffer *p_fbo[2];
+		int i_fbo_idx;
+	#endif
+		
 		GLFWwindow** wnd;
 		float *pf_time;
 		float lastTime;
+		
+		void initilizeUniformValue(int width, int height);
 		
 		string ConvertUTF8ToCp(const string& str);
 		bool is_any_wnd_should_close();
@@ -243,15 +224,44 @@ const glm::vec2 TMyApp::screen(1, 1);
 
 const char TMyApp::caption[] = "alphawater";
 
-float TMyApp::quadVerts[] = {
-	-1.0, -1.0,     0.0, 0.0,
-	-1.0, 1.0,      0.0, 1.0,
-	1.0, -1.0,      1.0, 0.0,
-
-	1.0, -1.0,      1.0, 0.0,
-	-1.0, 1.0,      0.0, 1.0,
-	1.0, 1.0,       1.0, 1.0
+GLfloat TMyApp::vertices[] = {
+   -1.0f,  1.0f,  0.0f,  1.0f,  0.0f,
+    1.0f,  1.0f,  0.0f,  1.0f,  1.0f,
+    1.0f, -1.0f,  0.0f,  0.0f,  1.0f,
+   -1.0f, -1.0f,  0.0f,  0.0f,  0.0f
 };
+
+GLuint TMyApp::indices[] = {
+    0, 1, 2,
+    0, 2, 3
+};
+
+void TMyApp::initilizeUniformValue(int width, int height)
+{
+    input.iResolution  = glm::vec3(width, height, 1.0f);
+    input.iTime        = 0.0f;
+    input.iGlobalTime  = 0.0f;
+    input.iMouse       = glm::vec4(0.0f, 0.0f, 0.0f, 0.0f);
+    input.iDate        = glm::vec4(0.0f, 0.0f, 0.0f, 0.0f);
+    input.iSampleRate  = 44100 * 1.0f;
+
+    /*auto size = mTextures.size();
+
+    if (size <= 4)
+    {
+        for (int i = 0; i < size; i++)
+        {
+            input.iChannelResolution[i] = Vector3(mTextures[i]->width(),
+                                                   mTextures[i]->height(),
+                                                   1.0f);
+            input.iChannelTime[i] = 0.0f;
+        }
+    }*/
+
+    input.iFrame       = 0;
+    input.iTimeDelta   = 0.0f;
+    input.iFrameRate   = 0.0f;
+}
 
 string TMyApp::ConvertUTF8ToCp(const string& str)
 {
@@ -318,7 +328,7 @@ void TMyApp::init_wnd(GLFWwindow *wnd, int width, int height)
 		exit(-1);
 	}
 
-	glGenVertexArrays(1, &VAO);
+	/*glGenVertexArrays(1, &VAO);
 	glBindVertexArray(VAO);
 
 	GLuint VBO;
@@ -369,8 +379,107 @@ void TMyApp::init_wnd(GLFWwindow *wnd, int width, int height)
 	glDeleteShader(vertexShader);
 	glDeleteShader(fragmentShader);
 
-	glUseProgram(shaderProgram);
-	glUniform2fv(glGetUniformLocation(shaderProgram, "iResolution"), 1, &screen[0]);
+	glUseProgram(shaderProgram);*/
+
+	////////
+	p_vao = new VertexArrayObject();
+	p_vao->create();
+	p_vao->bind();
+	
+    p_vbo_arr = new BufferObject(GL_ARRAY_BUFFER);
+    p_vbo_arr->create();
+    p_vbo_arr->bind();
+    p_vbo_arr->setUsagePattern(GL_STATIC_DRAW);
+    p_vbo_arr->allocate(vertices, sizeof(vertices));
+	
+	initilizeUniformValue(width, height);
+	
+	//load(PACK_NAME);
+
+	p_prg = new ShaderProgram();
+	p_prg->addShaderFromSource(Shader::ShaderType::Vertex, vertexShader);
+	{
+		std::string fragment = std::string(fragmentShaderPassHeader);
+		
+	#ifdef TEST_BUF_A
+		char buffer[0x20];
+		sprintf(buffer, "uniform sampler2D iChannel%d;\n", 0);
+		fragment.append(buffer);
+	#endif	
+		fragment.append(fragmentShaderSource);
+		fragment.append(fragmentShaderPassFooter);
+		p_prg->addShaderFromSource(Shader::ShaderType::Fragment, fragment.c_str());
+	}
+    p_prg->link();
+
+	log4cplus::Logger logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("vid"));
+    if (!p_prg->isLinked())
+	{
+        LOG4CPLUS_WARN(logger, LOG4CPLUS_TEXT("Не удалось слинковать шейдеры: ") << p_prg->log());
+		throw exception();
+	}
+	
+	p_prg->bind();
+	p_prg->setUniformValue("iResolution", input.iResolution);
+
+    p_prg->enableAttributeArray(0);
+    p_prg->setAttributeBuffer(0, GL_FLOAT, 0, 3, sizeof(GLfloat) * 5);
+    p_prg->enableAttributeArray(1);
+    p_prg->setAttributeBuffer(1, GL_FLOAT, 3, 2, 5 * sizeof(GLfloat));
+	
+	p_prg->release();
+
+#ifdef TEST_BUF_A
+	i_fbo_idx = 0;
+
+	p_prg_a = new ShaderProgram();
+	p_prg_a->addShaderFromSource(Shader::ShaderType::Vertex, vertexShader);
+	{
+		std::string fragment = std::string(fragmentShaderPassHeader);
+		
+		char buffer[0x20];
+		sprintf(buffer, "uniform sampler2D iChannel%d;\n", 0);
+		fragment.append(buffer);
+
+		fragment.append(fragmentShaderSource_buffer_a);
+		fragment.append(fragmentShaderPassFooter);
+		p_prg_a->addShaderFromSource(Shader::ShaderType::Fragment, fragment.c_str());
+	}
+    p_prg_a->link();
+
+    if (!p_prg_a->isLinked())
+	{
+        LOG4CPLUS_WARN(logger, LOG4CPLUS_TEXT("Не удалось слинковать шейдеры (buf A): ") << p_prg_a->log());
+		throw exception();
+	}
+	
+	p_prg_a->bind();
+	p_prg_a->setUniformValue("iResolution", input.iResolution);
+
+    p_prg_a->enableAttributeArray(0);
+    p_prg_a->setAttributeBuffer(0, GL_FLOAT, 0, 3, sizeof(GLfloat) * 5);
+    p_prg_a->enableAttributeArray(1);
+    p_prg_a->setAttributeBuffer(1, GL_FLOAT, 3, 2, 5 * sizeof(GLfloat));
+	p_prg_a->release();
+#endif
+
+    p_vbo_idx = new BufferObject(GL_ELEMENT_ARRAY_BUFFER);
+    p_vbo_idx->create();
+    p_vbo_idx->setUsagePattern(GL_STATIC_DRAW);
+    p_vbo_idx->bind();
+    p_vbo_idx->allocate(indices, sizeof(indices));
+
+	p_vao->release();
+	//p_prg_a->release();
+
+#ifdef TEST_BUF_A	
+	p_fbo[0] = new FrameBuffer();
+	p_fbo[0]->create(width, height, false);
+	p_fbo[1] = new FrameBuffer();
+	p_fbo[1]->create(width, height, false);
+#endif
+
+	//glUniform2fv(glGetUniformLocation(shaderProgram, "iResolution"), 1, &screen[0]);
 }
 
 void TMyApp::set_mode(void)
@@ -434,7 +543,23 @@ void TMyApp::on_size(__attribute__((unused)) GLFWwindow* wnd, int width, int hei
 	glViewport(-(t-width)*0.5, -(t-height)*0.5, t, t);
 	//glViewport(0, 0, t, t);
     //glViewport(0, 0, width, height);
-	
+
+	input.iResolution = glm::vec3(width, height, 1.0f);
+	p_prg->bind();
+	p_prg->setUniformValue("iResolution", input.iResolution);
+	p_prg->release();
+
+#ifdef TEST_BUF_A
+	p_prg_a->bind();
+	p_prg_a->setUniformValue("iResolution", input.iResolution);
+	p_prg_a->release();
+
+	for (int i = 0; i < 2; i++)
+	{
+		p_fbo[i]->resize(width, height, Texture::TEnumResizeContent::ercFromCenter);
+	}
+#endif
+
 	if(!is_fullscreen)
 	{
 		draw();
@@ -510,14 +635,60 @@ void TMyApp::draw(void)
 	for(int i = 0; i < i_wnd_cnt; i++)
 	{
 		glfwMakeContextCurrent(wnd[i]);
-		pf_time[i] += delta * ((i & 1) ? -1 : 1);
+		//pf_time[i] += delta * ((i & 1) ? -1 : 1);
 
-		glUseProgram(shaderProgram);
+		/*glUseProgram(shaderProgram);
 		glUniform1f(glGetUniformLocation(shaderProgram, "iTime"), pf_time[i]);
 		glBindVertexArray(VAO);
 		glDrawArrays(GL_TRIANGLES, 0, 6);
+		*/
+		
+	#ifdef TEST_BUF_A
+		int channel = 0;
+		int i_tex = p_fbo[i_fbo_idx]->textureId();
+		shared_ptr<Texture> texture = p_fbo[i_fbo_idx]->texture();
+		i_fbo_idx = (i_fbo_idx + 1) & 1;
+
+		p_fbo[i_fbo_idx]->bind();
+		p_prg_a->bind();
+		
+		//glActiveTexture(GL_TEXTURE0 + channel);
+		//glBindTexture(GL_TEXTURE_2D, i_tex);
+		texture->bindToChannel(channel);
+
+		p_prg_a->setUniformValue("iTime", input.iTime);
+		p_prg_a->setUniformValue("iFrame", input.iFrame);
+		p_vao->bind();
+		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+		p_vao->release();
+		glBindTexture(GL_TEXTURE_2D, 0);
+		p_prg_a->release();
+		p_fbo[i_fbo_idx]->release();
+	#endif	
+
+		p_prg->bind();
+
+	#ifdef TEST_BUF_A
+		channel = 0;
+		//glActiveTexture(GL_TEXTURE0 + channel);
+		//glBindTexture(GL_TEXTURE_2D, p_fbo[i_fbo_idx]->textureId());
+		p_fbo[i_fbo_idx]->texture()->bindToChannel(channel);
+	#endif
+
+		p_prg->setUniformValue("iTime", input.iTime);
+		p_prg->setUniformValue("iFrame", input.iFrame);
+		p_vao->bind();
+		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+		p_vao->release();
+	#ifdef TEST_BUF_A
+		glBindTexture(GL_TEXTURE_2D, 0);
+	#endif
+		p_prg->release();
 
 		glfwSwapBuffers(wnd[i]);
+		
+		input.iTime += delta * ((i & 1) ? -1 : 1);
+		input.iFrame++;
 	}
 }
 
@@ -737,6 +908,11 @@ void TMyApp::run(void)
 int main(int argc, char *argv[])
 {
 	int res;
+
+    log4cplus::Initializer initializer;
+
+    log4cplus::BasicConfigurator config;
+    config.configure();
 
 	try
 	{
