@@ -659,6 +659,7 @@ void TMyAppWnd::draw(void)
 #endif
 	p_prg->release();
 
+	glfwMakeContextCurrent(NULL);
 	glfwSwapBuffers(wnd);
 	
 	input.iTime += input.iTimeDelta * p_app->delta;
