@@ -159,9 +159,14 @@ void mainImage(out vec4 o, vec2 u)
 )";
 #endif
 
+class TMyApp;
+
 class TMyAppWnd
 {
+	friend class TMyApp;
+
 private:
+	TMyApp *p_app;
 	GLFWwindow *wnd;
 	ShaderInput input;
 
@@ -179,7 +184,7 @@ private:
 	int i_fbo_idx;
 #endif
 
-
+	bool is_should_close();
 	void initilizeUniformValue(int width, int height);
 	void init_wnd(int width, int height);
 	void on_size(int width, int height);
@@ -188,12 +193,15 @@ private:
 	void on_mouse_btn(int button, int action, int mods);
 	
 public:
-	TMyAppWnd(int width, int height, string caption, GLFWmonitor *mon = nullptr);
+	TMyAppWnd(TMyApp *p_app, int width, int height, string caption, GLFWmonitor *mon = nullptr);
+	~TMyAppWnd();
 	void draw(void);
-}
+};
 
 class TMyApp
 {
+	friend class TMyAppWnd;
+
 	private:
 		static const glm::vec2 screen;
 		static const char caption[];
@@ -244,9 +252,17 @@ GLuint TMyApp::indices[] = {
     0, 2, 3
 };
 
-TMyAppWnd::TMyAppWnd(int width, int height, string caption, GLFWmonitor *mon)
+bool TMyAppWnd::is_should_close()
 {
-	wnd = glfwCreateWindow(width, height, caption, mon, nullptr);
+	bool res = glfwWindowShouldClose(wnd);
+
+	return res;
+}
+
+TMyAppWnd::TMyAppWnd(TMyApp *p_app, int width, int height, string caption, GLFWmonitor *mon):
+	p_app(p_app)
+{
+	wnd = glfwCreateWindow(width, height, caption.c_str(), mon, nullptr);
 	if (!wnd)
 	{
 		throw invalid_argument("failed to create wnd");
@@ -256,6 +272,13 @@ TMyAppWnd::TMyAppWnd(int width, int height, string caption, GLFWmonitor *mon)
 	{
 		glfwSetInputMode(wnd, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 	}
+	
+	init_wnd(width, height);
+}
+
+TMyAppWnd::~TMyAppWnd()
+{
+	glfwDestroyWindow(wnd);
 }
 
 void TMyAppWnd::initilizeUniformValue(int width, int height)
@@ -281,7 +304,7 @@ void TMyAppWnd::initilizeUniformValue(int width, int height)
     }*/
 
     input.iFrame       = 0;
-    input.iTimeDelta   = 0.0f;
+    input.iTimeDelta   = 1.0f;
     input.iFrameRate   = 0.0f;
 }
 
@@ -322,7 +345,7 @@ void TMyAppWnd::init_wnd(int width, int height)
 		glfwSetKeyCallback(wnd, cb);
 	}
 
-	if(is_screensaver)
+	if(p_app->is_screensaver)
 	{
 		{
 			auto cb = [](GLFWwindow* wnd, double xpos, double ypos)
@@ -358,7 +381,7 @@ void TMyAppWnd::init_wnd(int width, int height)
     p_vbo_arr->create();
     p_vbo_arr->bind();
     p_vbo_arr->setUsagePattern(GL_STATIC_DRAW);
-    p_vbo_arr->allocate(vertices, sizeof(vertices));
+    p_vbo_arr->allocate(p_app->vertices, sizeof(p_app->vertices));
 	
 	initilizeUniformValue(width, height);
 	
@@ -435,7 +458,7 @@ void TMyAppWnd::init_wnd(int width, int height)
     p_vbo_idx->create();
     p_vbo_idx->setUsagePattern(GL_STATIC_DRAW);
     p_vbo_idx->bind();
-    p_vbo_idx->allocate(indices, sizeof(indices));
+    p_vbo_idx->allocate(p_app->indices, sizeof(p_app->indices));
 
 	p_vao->release();
 	//p_prg_a->release();
@@ -455,14 +478,14 @@ void TMyApp::set_mode(void)
     if (is_fullscreen)
     {
         // backup wnd position and wnd size
-        glfwGetWindowPos(wnd[0], &wnd_pos[0], &wnd_pos[1] );
-        glfwGetWindowSize(wnd[0], &wnd_size[0], &wnd_size[1] );
+        glfwGetWindowPos(wnd[0]->wnd, &wnd_pos[0], &wnd_pos[1] );
+        glfwGetWindowSize(wnd[0]->wnd, &wnd_size[0], &wnd_size[1] );
 
         // get resolution of monitor
         const GLFWvidmode * mode = glfwGetVideoMode(mon[0]);
         // switch to full screen
-        glfwSetWindowMonitor(wnd[0], mon[0], 0, 0, mode->width, mode->height, 0);
-		glfwSetInputMode(wnd[0], GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+        glfwSetWindowMonitor(wnd[0]->wnd, mon[0], 0, 0, mode->width, mode->height, 0);
+		glfwSetInputMode(wnd[0]->wnd, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 
 		i_wnd_cnt = i_mon_cnt;
 		for(int i = 1; i < i_wnd_cnt; i++)
@@ -474,34 +497,28 @@ void TMyApp::set_mode(void)
 			width = mode->width;
 			height = mode->height;
 
-			wnd[i] = new TMyAppWnd(width, height, caption, mon[i]);
-			/*wnd[i] = glfwCreateWindow(width, height, caption, mon[i], nullptr);
-			if (!wnd[i])
+			wnd[i] = new TMyAppWnd(this, width, height, caption, mon[i]);
+			if(i & 1)
 			{
-				cerr << "failed to create wnd" << endl;
-				exit(-1);
+				wnd[i]->input.iTimeDelta = -wnd[i]->input.iTimeDelta;
 			}
-
-			glfwSetInputMode(wnd[i], GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
-			*/
-			
-			on_size(wnd[i], width, height);
-			init_wnd(wnd[i], width, height);
+			wnd[i]->on_size(width, height);
+			//init_wnd(wnd[i], width, height);
 		}
     }
     else
     {
 		for(int i = 1; i < i_wnd_cnt; i++)
 		{
-			glfwDestroyWindow(wnd[i]);
+			delete wnd[i];
 			wnd[i] = NULL;
 		}
 
 		i_wnd_cnt = 1;
         // restore last wnd size and position
-        glfwSetWindowMonitor(wnd[0], nullptr,  wnd_pos[0], wnd_pos[1], wnd_size[0], wnd_size[1], 0);
+        glfwSetWindowMonitor(wnd[0]->wnd, nullptr,  wnd_pos[0], wnd_pos[1], wnd_size[0], wnd_size[1], 0);
 
-		glfwSetInputMode(wnd[0], GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+		glfwSetInputMode(wnd[0]->wnd, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
     }
 }
 
@@ -530,7 +547,7 @@ void TMyAppWnd::on_size(int width, int height)
 	}
 #endif
 
-	if(!is_fullscreen)
+	if(!p_app->is_fullscreen)
 	{
 		draw();
 	}
@@ -540,9 +557,9 @@ void TMyAppWnd::on_key(int key, __attribute__((unused)) int scancode, int action
 {
 	static bool is_mode_switch = false;
 
-	if(is_screensaver)
+	if(p_app->is_screensaver)
 	{
-		if(!is_preview())
+		if(!p_app->is_preview())
 		{
 			glfwSetWindowShouldClose(wnd, true);
 		}
@@ -559,8 +576,8 @@ void TMyAppWnd::on_key(int key, __attribute__((unused)) int scancode, int action
 			if(!is_mode_switch)
 			{
 				is_mode_switch = true;
-				is_fullscreen = !is_fullscreen;
-				set_mode();
+				p_app->is_fullscreen = !p_app->is_fullscreen;
+				p_app->set_mode();
 			}
 		}
 		else
@@ -574,7 +591,7 @@ void TMyAppWnd::on_mouse_pos(__attribute__((unused)) double xpos, __attribute__(
 {
 	static bool is_first_run = true;
 	
-	if(is_screensaver && !is_preview())
+	if(p_app->is_screensaver && !p_app->is_preview())
 	{
 		if(is_first_run)
 		{
@@ -589,7 +606,7 @@ void TMyAppWnd::on_mouse_pos(__attribute__((unused)) double xpos, __attribute__(
 
 void TMyAppWnd::on_mouse_btn(__attribute__((unused)) int button, __attribute__((unused)) int action, __attribute__((unused)) int mods)
 {
-	if(is_screensaver && !is_preview())
+	if(p_app->is_screensaver && !p_app->is_preview())
 	{
 		glfwSetWindowShouldClose(wnd, true);
 	}
@@ -598,15 +615,15 @@ void TMyAppWnd::on_mouse_btn(__attribute__((unused)) int button, __attribute__((
 void TMyAppWnd::draw(void)
 {
 	float now = glfwGetTime();
-	float delta = now - lastTime;
+	float delta = now - p_app->lastTime;
 
-	lastTime = now;
+	p_app->lastTime = now;
 	
 	glfwMakeContextCurrent(wnd);
 	
 #ifdef TEST_BUF_A
 	int channel = 0;
-	int i_tex = p_fbo[i_fbo_idx]->textureId();
+	//int i_tex = p_fbo[i_fbo_idx]->textureId();
 	shared_ptr<Texture> texture = p_fbo[i_fbo_idx]->texture();
 	i_fbo_idx = (i_fbo_idx + 1) & 1;
 
@@ -646,9 +663,9 @@ void TMyAppWnd::draw(void)
 #endif
 	p_prg->release();
 
-	glfwSwapBuffers(wnd[i]);
+	glfwSwapBuffers(wnd);
 	
-	input.iTime += delta * ((i & 1) ? -1 : 1);
+	input.iTime += input.iTimeDelta * delta;
 	input.iFrame++;
 }
 
@@ -656,7 +673,7 @@ void TMyApp::draw(void)
 {
 	for(int i = 0; i < i_wnd_cnt; i++)
 	{
-		wnd[i].draw();
+		wnd[i]->draw();
 	}
 }
 
@@ -690,10 +707,10 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 	//wnd = new GLFWwindow * [i_mon_cnt];
 	wnd = new TMyAppWnd * [i_mon_cnt];
 	//pf_time = new float[i_mon_cnt];
-	for(int i = 0; i < i_mon_cnt; i++)
-	{
+	//for(int i = 0; i < i_mon_cnt; i++)
+	//{
 		//pf_time[i] = 0; //rand() % 100;
-	}
+	//}
 	
 	if (is_fullscreen)
 	{
@@ -704,16 +721,11 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 			width = mode->width;
 			height = mode->height;
 			cout << "mon[" << i << "] = " << mon[i] << endl;
-			wnd[i] = new TMyAppWnd(width, height, caption, mon[i]);
-			/*wnd[i] = glfwCreateWindow(width, height, caption, mon[i], nullptr);
-			if (!wnd[i])
+			wnd[i] = new TMyAppWnd(this, width, height, caption, mon[i]);
+			if(i & 1)
 			{
-				cerr << "failed to create wnd" << endl;
-				exit(-1);
+				wnd[i]->input.iTimeDelta = -wnd[i]->input.iTimeDelta;
 			}
-
-			glfwSetInputMode(wnd[i], GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
-			*/
 		}
 
 		if(i_wnd_cnt > 0)
@@ -737,28 +749,20 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 			string cap = caption;
 			cap += " ";
 			cap += to_string(i);
-			wnd[i] = new TMyAppWnd(width, height, caption);
-			/*wnd[i] = glfwCreateWindow(width, height, cap.c_str(), nullptr, nullptr);
-			if (!wnd[i])
-			{
-				cerr << "failed to create wnd" << endl;
-				exit(-1);
-			}*/
+			wnd[i] = new TMyAppWnd(this, width, height, caption);
 		}
 
-        glfwGetWindowSize(wnd[0], &wnd_size[0], &wnd_size[1]);
-        glfwGetWindowPos(wnd[0], &wnd_pos[0], &wnd_pos[1]);
+        glfwGetWindowSize(wnd[0]->wnd, &wnd_size[0], &wnd_size[1]);
+        glfwGetWindowPos(wnd[0]->wnd, &wnd_pos[0], &wnd_pos[1]);
 	}
 
-	for(int i = i_wnd_cnt - 1; i >= 0; i--)
-	{
+	//for(int i = i_wnd_cnt - 1; i >= 0; i--)
+	//{
 		//MessageBoxA(NULL, "debug", "HIT.1", MB_OK);
-		init_wnd(wnd[i], width, height);
+		//init_wnd(wnd[i], width, height);
 
 		lastTime = glfwGetTime();
-		
-		//glfwMaximizeWindow(wnd[i]);
-	}
+	//}
 }
 
 void TMyApp::show_usage(void)
@@ -798,7 +802,7 @@ TMyApp::TMyApp(int argc, char *argv[])
 
 				char *s_ptr = argv[2];
 				HWND h_wnd_parent = (HWND)stoull(s_ptr, nullptr, 10);
-				HWND h_wnd = glfwGetWin32Window(wnd[0]);
+				HWND h_wnd = glfwGetWin32Window(wnd[0]->wnd);
 				SetParent(h_wnd, h_wnd_parent);
 				SetWindowLong(h_wnd, GWL_STYLE, WS_VISIBLE | WS_CHILD | WS_CLIPCHILDREN);
 				RECT rc;
@@ -858,7 +862,7 @@ bool TMyApp::is_any_wnd_should_close()
 
 	for(int i = i_wnd_cnt - 1; i >= 0; i--)
 	{
-		if(glfwWindowShouldClose(wnd[i]))
+		if(wnd[i]->is_should_close())
 		{
 			res = true;
 			break;

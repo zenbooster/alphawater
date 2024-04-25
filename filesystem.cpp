@@ -32,12 +32,12 @@ char *FileSystem::readAll(const char *filename)
     fseek(fp, 0, SEEK_SET);
 
     char *buffer = new char[size + 1];
-    fpos_t pos;
-	size_t idx = 0;
 
 #ifdef _WIN32
-    pos = 0;
+	size_t idx = 0;
 #else
+	fpos_t pos;
+
 	pos.__pos = 0;
 #endif
 
