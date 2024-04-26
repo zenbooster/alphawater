@@ -1,16 +1,22 @@
 #ifndef COMMON_H
 #define COMMON_H
 
+#include <iostream>
 #include <string>
 #include <fstream>
 #include <sstream>
 #include <glad/glad.h>
+#include <GLFW/glfw3.h>
 
 #include <log4cplus/log4cplus.h>
 #include <log4cplus/logger.h>
 #include <log4cplus/loggingmacros.h>
 #include <log4cplus/configurator.h>
 #include <log4cplus/initializer.h>
+
+#define DATA_FOLDER "../data"
+#define PACK_NAME "curling-smoke"
+#define TEST_BUF_A
 
 using namespace std;
 
