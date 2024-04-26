@@ -437,6 +437,8 @@ void TMyAppWnd::init_wnd(int width, int height)
 		cerr << "failed to initialize glad with processes" << endl;
 		exit(-1);
 	}
+	
+	glfwSwapInterval( 1 );
 
 	p_vao = new VertexArrayObject();
 	p_vao->create();
@@ -731,7 +733,6 @@ void TMyApp::draw(void)
 {
 	float now = glfwGetTime();
 	delta = now - lastTime;
-
 	lastTime = now;
 
 	for(int i = 0; i < i_wnd_cnt; i++)
@@ -785,10 +786,10 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 			height = mode->height;
 			cout << "mon[" << i << "] = " << mon[i] << endl;
 			wnd[i] = new TMyAppWnd(this, width, height, caption, mon[i]);
-			/*if(i & 1)
+			if(i & 1)
 			{
 				wnd[i]->input.iTimeDelta = -wnd[i]->input.iTimeDelta;
-			}*/
+			}
 		}
 
 		if(i_wnd_cnt > 0)
