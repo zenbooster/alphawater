@@ -14,12 +14,10 @@ find_path(LOG4CPLUS_INC
         "/usr/local/include/log4cplus"
         "/opt/local/include"
         "/opt/local/include/log4cplus"
-		"D:/git/log4cplus/include"
 )
 
 # Finally the library itself
 find_library(LOG4CPLUS_LIB
-  #NAMES log4cplus liblog4cplus liblog4cplus-static
   NAMES liblog4cplus.a
   HINTS "/usr/lib"
         "/usr/local/lib"
