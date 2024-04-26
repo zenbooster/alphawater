@@ -450,7 +450,7 @@ void TMyAppWnd::init_wnd(int width, int height)
 	
 	initilizeUniformValue(width, height);
 	
-	load(PACK_NAME);
+	//load(PACK_NAME);
 
 	p_prg = new ShaderProgram();
 	p_prg->addShaderFromSource(Shader::ShaderType::Vertex, vertexShader);
@@ -589,7 +589,9 @@ void TMyApp::set_mode(void)
 
 void TMyAppWnd::on_size(int width, int height)
 {
-	cout << "wnd=" << wnd << "; w=" << width << "; h=" << height << endl;
+	log4cplus::Logger logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT ("app"));
+	LOG4CPLUS_INFO(logger, LOG4CPLUS_TEXT("wnd=") << wnd << LOG4CPLUS_TEXT("; w=") << width << LOG4CPLUS_TEXT("; h=") << height);
+
 	glfwMakeContextCurrent(wnd);
 	int t = max(width, height);
 	glViewport(-(t-width)*0.5, -(t-height)*0.5, t, t);
@@ -683,15 +685,12 @@ void TMyAppWnd::draw(void)
 	
 #ifdef TEST_BUF_A
 	int channel = 0;
-	//int i_tex = p_fbo[i_fbo_idx]->textureId();
 	shared_ptr<Texture> texture = p_fbo[i_fbo_idx]->texture();
 	i_fbo_idx = (i_fbo_idx + 1) & 1;
 
 	p_fbo[i_fbo_idx]->bind();
 	p_prg_a->bind();
 	
-	//glActiveTexture(GL_TEXTURE0 + channel);
-	//glBindTexture(GL_TEXTURE_2D, i_tex);
 	texture->bindToChannel(channel);
 
 	p_prg_a->setUniformValue("iTime", input.iTime);
@@ -708,8 +707,6 @@ void TMyAppWnd::draw(void)
 
 #ifdef TEST_BUF_A
 	channel = 0;
-	//glActiveTexture(GL_TEXTURE0 + channel);
-	//glBindTexture(GL_TEXTURE_2D, p_fbo[i_fbo_idx]->textureId());
 	p_fbo[i_fbo_idx]->texture()->bindToChannel(channel);
 #endif
 
@@ -788,10 +785,10 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 			height = mode->height;
 			cout << "mon[" << i << "] = " << mon[i] << endl;
 			wnd[i] = new TMyAppWnd(this, width, height, caption, mon[i]);
-			if(i & 1)
+			/*if(i & 1)
 			{
 				wnd[i]->input.iTimeDelta = -wnd[i]->input.iTimeDelta;
-			}
+			}*/
 		}
 
 		if(i_wnd_cnt > 0)
@@ -828,7 +825,7 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 		//init_wnd(wnd[i], width, height);
 
 		lastTime = glfwGetTime();
-		delta = 1.0;
+		//delta = 1.0;
 	//}
 }
 
