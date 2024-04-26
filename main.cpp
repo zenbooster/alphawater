@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <csv.h>
 
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
@@ -26,6 +27,8 @@
 #include "bufferobject.h"
 #include "framebuffer.h"
 
+#define DATA_FOLDER "../data"
+#define PACK_NAME "curling-smoke"
 #define TEST_BUF_A
 
 using namespace std;
@@ -186,6 +189,7 @@ private:
 
 	bool is_should_close();
 	void initilizeUniformValue(int width, int height);
+	void load(string pack_name);
 	void init_wnd(int width, int height);
 	void on_size(int width, int height);
 	void on_key(int key, int scancode, int action, int mods);
@@ -208,7 +212,6 @@ class TMyApp
 		static GLfloat vertices[];
 		static GLuint indices[];
 		bool is_parent_console;
-		uint32_t con_cp;
 		bool is_fullscreen;
 		bool is_screensaver;
 		int i_mon_cnt;
@@ -221,7 +224,6 @@ class TMyApp
 		float lastTime;
 		float delta;
 
-		string ConvertUTF8ToCp(const string& str);
 		bool is_any_wnd_should_close();
 		void set_mode(void);
 		void draw(void);
@@ -309,21 +311,83 @@ void TMyAppWnd::initilizeUniformValue(int width, int height)
     input.iFrameRate   = 0.0f;
 }
 
-string TMyApp::ConvertUTF8ToCp(const string& str)
+void TMyAppWnd::load(string pack_name)
 {
-    int len = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, NULL, 0);
-    wchar_t* wstr = new wchar_t[len];
-    MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, wstr, len);
+	string s_pack_folder = tostringstream() << DATA_FOLDER << "/" << pack_name + "/";
+	enum TEnumFile
+	{
+		//ef_config,
+		ef_common,
+		ef_image,
+		ef_buf_a,
+		ef_buf_b,
+		ef_buf_c,
+		ef_buf_d
+	};
+	static map<TEnumFile, string> m_file_names =
+	{
+		//{ef_config, "config.csv"},
+		{ef_common, "common.f"},
+		{ef_image, "image.f"},
+		{ef_buf_a, "buffer-a.f"},
+		{ef_buf_b, "buffer-b.f"},
+		{ef_buf_c, "buffer-c.f"},
+		{ef_buf_d, "buffer-d.f"}
+	};
+	map<TEnumFile, string> m_file_content;
+	string fname, fspec;
+	bool is_has_buffers = false;
 
-    len = WideCharToMultiByte(con_cp, 0, wstr, -1, NULL, 0, NULL, NULL);
-    char* s = new char[len];
-    WideCharToMultiByte(con_cp, 0, wstr, -1, s, len, NULL, NULL);
+	log4cplus::Logger logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("app"));
+	LOG4CPLUS_INFO(logger, LOG4CPLUS_TEXT("Загружаем пакет из каталога: ") << s_pack_folder);
 
-    std::string result(s);
-    delete[] wstr;
-    delete[] s;
+	for(int i = ef_common; i <= ef_buf_d; i++)
+	{
+		TEnumFile ef = static_cast<TEnumFile>(i);
+		fname = m_file_names[ef];
+		fspec = tostringstream() << s_pack_folder << fname;
 
-    return result;
+		ifstream f(fspec);
+		if(f.good())
+		{
+			m_file_content[ef] = tostringstream() << f.rdbuf();
+			LOG4CPLUS_INFO(logger, LOG4CPLUS_TEXT("Загружен файл: ") << fname);
+			
+			if(!is_has_buffers && ef >= ef_buf_a)
+			{
+				is_has_buffers = true;
+			}
+		}
+		else
+		{
+			if(ef == ef_image)
+			{
+				LOG4CPLUS_ERROR(logger, LOG4CPLUS_TEXT("Не найден обязательный файл: ") << fname);
+				throw exception();
+			}
+		}
+	}
+	
+	if(is_has_buffers)
+	{
+		/*if(!m_file_content.count(ef_config))
+		{
+			LOG4CPLUS_ERROR(logger, LOG4CPLUS_TEXT("Есть буферы но нет конфига: ") << s_pack_folder);
+			throw exception();
+		}*/
+		fname = "config.csv";
+		fspec = tostringstream() << s_pack_folder << fname;
+		LOG4CPLUS_INFO(logger, LOG4CPLUS_TEXT("Загружаем конфиг: ") << fname);
+		io::CSVReader<5> in(fspec.c_str());
+		in.read_header(io::ignore_missing_column, "prg", "ch0", "ch1", "ch2", "ch3");
+		string prg, ch0, ch1, ch2, ch3;
+		while(in.read_row(prg, ch0, ch1, ch2, ch3))
+		{
+			LOG4CPLUS_INFO(logger, LOG4CPLUS_TEXT("") << prg << ": " << ch0 << ", " << ch1 << ", " << ch2 << ", " << ch3);
+		}
+	}
+	
+	LOG4CPLUS_INFO(logger, LOG4CPLUS_TEXT("Пакет загружен успешно!"));
 }
 
 void TMyAppWnd::init_wnd(int width, int height)
@@ -386,7 +450,7 @@ void TMyAppWnd::init_wnd(int width, int height)
 	
 	initilizeUniformValue(width, height);
 	
-	//load(PACK_NAME);
+	load(PACK_NAME);
 
 	p_prg = new ShaderProgram();
 	p_prg->addShaderFromSource(Shader::ShaderType::Vertex, vertexShader);
@@ -778,23 +842,11 @@ void TMyApp::show_usage(void)
 			"\t/s             - запуск в полноэкранном режиме\n\n"
 			"\tБез параметров - запуск в оконном режиме.";
 			
-	cout << ConvertUTF8ToCp(s) << endl;
+	cout << s << endl;
 }
 
 TMyApp::TMyApp(int argc, char *argv[])
 {
-	is_parent_console = AttachConsole(ATTACH_PARENT_PROCESS);
-
-	if(is_parent_console)
-	{
-		freopen("CON", "w", stdout);
-		freopen("CON", "r", stdin);
-		freopen("CON", "w", stderr);
-		cout << endl;
-		
-		con_cp = GetConsoleOutputCP();
-	}
-
 	switch(argc)
 	{
 		case 1 + 2:
@@ -847,7 +899,8 @@ TMyApp::TMyApp(int argc, char *argv[])
 
 TMyApp::~TMyApp()
 {
-	cout << "exit" << endl;
+	log4cplus::Logger logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT ("app"));
+	LOG4CPLUS_INFO(logger, LOG4CPLUS_TEXT("exit"));
 	
 	if(is_parent_console)
 	{
@@ -889,8 +942,21 @@ int main(int argc, char *argv[])
 
     log4cplus::Initializer initializer;
 
-    log4cplus::BasicConfigurator config;
-    config.configure();
+    //log4cplus::BasicConfigurator config;
+    //config.configure();
+	log4cplus::SharedAppenderPtr fileAppender(new log4cplus::FileAppender(LOG4CPLUS_TEXT("./main.log"),std::ios_base::app,true,true));
+	fileAppender->setName(LOG4CPLUS_TEXT("file"));
+	log4cplus::tstring pattern = LOG4CPLUS_TEXT("%D{%Y/%m/%d %H:%M:%S,%Q} [%t] %-5p %c - %m [%l]%n");
+    fileAppender->setLayout(std::unique_ptr<log4cplus::Layout>(new log4cplus::PatternLayout(pattern)));
+	log4cplus::Logger logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT ("app"));
+	logger.setLogLevel(log4cplus::INFO_LOG_LEVEL);
+	logger.addAppender(fileAppender);
+	logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT ("vid"));
+	logger.setLogLevel(log4cplus::INFO_LOG_LEVEL);
+	logger.addAppender(fileAppender);
+	
+	logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT ("app"));
+	LOG4CPLUS_INFO(logger, LOG4CPLUS_TEXT("start"));
 
 	try
 	{
