@@ -337,8 +337,14 @@ void TMyAppWnd::init_wnd(int width, int height)
 	initilizeUniformValue(width, height);
 	
 	load(PACK_NAME);
+	
+	mpsh = new TMPShader(this, "i", vertexShader, fragmentShaderSource);
+#ifdef TEST_BUF_A
+	mpsh->assign(0, new TMPShader(this, "a", vertexShader, fragmentShaderSource_buffer_a));
+#endif
+	mpsh->link();
 
-	p_prg = new ShaderProgram();
+	/*p_prg = new ShaderProgram();
 	p_prg->addShaderFromSource(Shader::ShaderType::Vertex, vertexShader);
 	{
 		std::string fragment = std::string(fragmentShaderPassHeader);
@@ -403,7 +409,7 @@ void TMyAppWnd::init_wnd(int width, int height)
     p_prg_a->enableAttributeArray(1);
     p_prg_a->setAttributeBuffer(1, GL_FLOAT, 3, 2, 5 * sizeof(GLfloat));
 	p_prg_a->release();
-#endif
+#endif*/
 
     p_vbo_idx = new BufferObject(GL_ELEMENT_ARRAY_BUFFER);
     p_vbo_idx->create();
@@ -414,14 +420,12 @@ void TMyAppWnd::init_wnd(int width, int height)
 	p_vao->release();
 	//p_prg_a->release();
 
-#ifdef TEST_BUF_A	
+/*#ifdef TEST_BUF_A	
 	p_fbo[0] = new FrameBuffer();
 	p_fbo[0]->create(width, height, false);
 	p_fbo[1] = new FrameBuffer();
 	p_fbo[1]->create(width, height, false);
-#endif
-
-	//glUniform2fv(glGetUniformLocation(shaderProgram, "iResolution"), 1, &screen[0]);
+#endif*/
 }
 
 void TMyAppWnd::on_size(int width, int height)
@@ -439,7 +443,8 @@ void TMyAppWnd::on_size(int width, int height)
     //glViewport(0, 0, width, height);
 
 	input.iResolution = glm::vec3(width, height, 1.0f);
-	p_prg->bind();
+	mpsh->resize(width, height);
+	/*p_prg->bind();
 	p_prg->setUniformValue("iResolution", input.iResolution);
 	p_prg->release();
 
@@ -452,7 +457,7 @@ void TMyAppWnd::on_size(int width, int height)
 	{
 		p_fbo[i]->resize(width, height, Texture::TEnumResizeContent::ercFromCenter);
 	}
-#endif
+#endif*/
 
 	if(!p_app->is_fullscreen)
 	{

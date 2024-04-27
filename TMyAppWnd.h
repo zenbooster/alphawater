@@ -1,5 +1,6 @@
 #pragma once
 #include "shaderprogram.h"
+#include "TMPShader.h"
 #include "shaders.h"
 #include "shaderinput.h"
 #include "vertexarrayobject.h"
@@ -20,10 +21,11 @@ private:
 	int height;
 	ShaderInput input;
 
-	ShaderProgram *p_prg;
+	TMPShader *mpsh;
+	/*ShaderProgram *p_prg;
 #ifdef TEST_BUF_A
 	ShaderProgram *p_prg_a;
-#endif
+#endif*/
 
 	VertexArrayObject *p_vao;
 	BufferObject *p_vbo_arr;
