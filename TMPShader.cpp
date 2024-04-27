@@ -130,7 +130,10 @@ void TMPShader::resize(int width, int height)
 	p_prg->setUniformValue("iResolution", wnd->input.iResolution);
 	p_prg->release();
 	
-	p_fbp->resize(width, height);
+	if(p_fbp)
+	{
+		p_fbp->resize(width, height);
+	}
 }
 
 void TMPShader::draw()
