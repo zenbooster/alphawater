@@ -336,7 +336,7 @@ void TMyAppWnd::init_wnd(int width, int height)
 	
 	initilizeUniformValue(width, height);
 	
-	//load(PACK_NAME);
+	load(PACK_NAME);
 
 	p_prg = new ShaderProgram();
 	p_prg->addShaderFromSource(Shader::ShaderType::Vertex, vertexShader);
