@@ -139,30 +139,21 @@ void TMPShader::draw()
 	traverse([](TMPShader *o){o->draw();});
 	
 	LOG4CPLUS_INFO(logger, (string)*this << " начало отрисовки");
-	//shared_ptr<Texture> texture;
 
 	p_prg->bind();
 
 	if(p_fbp)
 	{
-		//texture = p_fbp->texture();
-		//p_fbp->swap();
 		p_fbp->bind();
 		LOG4CPLUS_INFO(logger, (string)*this << " fb[" << p_fbp->i << "] binded");
 	}
 
-	/*if(p_fbp)
-	{
-		texture->bindToChannel(channel);
-	}*/
 	for(auto v : m_channels)
 	{
 		uint32_t ch = v.first;
 		TMPShader *other = v.second;
-		other->p_fbp->swap();
 		other->p_fbp->texture()->bindToChannel(ch);
 		LOG4CPLUS_INFO(logger, (string)*this << " " << other->name << "->fb[" << other->p_fbp->i << "] texture binded to channel " << ch);
-		other->p_fbp->swap();
 	}
 
 	p_prg->setUniformValue("iTime", wnd->input.iTime);

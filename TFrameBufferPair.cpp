@@ -1,7 +1,8 @@
 #include "TFrameBufferPair.h"
+#include <utility>
 
 TFrameBufferPair::TFrameBufferPair(int width, int height):
-	i(0)
+	i(0), j(1)
 {
 	for(int i = 0; i < 2; i++)
 	{
@@ -19,12 +20,12 @@ void TFrameBufferPair::resize(int width, int height)
 
 shared_ptr<Texture> TFrameBufferPair::texture()
 {
-	return fbo[i].texture();
+	return fbo[j].texture();
 }
 
 void TFrameBufferPair::swap()
 {
-	i = (i + 1) & 1;
+	std::swap(i, j);
 }
 
 void TFrameBufferPair::bind()

@@ -530,48 +530,6 @@ void TMyAppWnd::draw(void)
 {
 	glfwMakeContextCurrent(wnd);
 	mpsh->draw();
-	/*
-#ifdef TEST_BUF_A
-	int channel = 0;
-	//shared_ptr<Texture> texture = p_fbo[i_fbo_idx]->texture();
-	//i_fbo_idx = (i_fbo_idx + 1) & 1;
-
-	p_prg_a->bind();
-
-	p_fbo[i_fbo_idx]->bind();
-	i_fbo_idx = (i_fbo_idx + 1) & 1;
-	shared_ptr<Texture> texture = p_fbo[i_fbo_idx]->texture();
-	texture->bindToChannel(channel);
-	i_fbo_idx = (i_fbo_idx + 1) & 1;
-	
-
-	p_prg_a->setUniformValue("iTime", input.iTime);
-	p_prg_a->setUniformValue("iFrame", input.iFrame);
-	p_vao->bind();
-	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-	p_vao->release();
-	p_fbo[i_fbo_idx]->release();
-	i_fbo_idx = (i_fbo_idx + 1) & 1;
-	p_prg_a->release();
-#endif	
-
-	p_prg->bind();
-
-#ifdef TEST_BUF_A
-	channel = 0;
-	i_fbo_idx = (i_fbo_idx + 1) & 1;
-	p_fbo[i_fbo_idx]->texture()->bindToChannel(channel);
-	i_fbo_idx = (i_fbo_idx + 1) & 1;
-#endif
-
-	p_prg->setUniformValue("iTime", input.iTime);
-	p_prg->setUniformValue("iFrame", input.iFrame);
-	p_vao->bind();
-	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-	p_vao->release();
-	p_prg->release();
-	*/
-	
 
 	glfwMakeContextCurrent(NULL);
 	glfwSwapBuffers(wnd);
