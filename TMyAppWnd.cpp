@@ -340,11 +340,13 @@ void TMyAppWnd::init_wnd(int width, int height)
 	
 	mpsh = new TMPShader(this, "i", vertexShader, fragmentShaderSource);
 #ifdef TEST_BUF_A
-	mpsh->assign(0, new TMPShader(this, "a", vertexShader, fragmentShaderSource_buffer_a));
+	TMPShader *mpsh_a = new TMPShader(this, "a", vertexShader, fragmentShaderSource_buffer_a);
+	mpsh_a->assign(0, mpsh_a);
+	mpsh->assign(0, mpsh_a);
 #endif
 	mpsh->link();
 
-	/*p_prg = new ShaderProgram();
+	p_prg = new ShaderProgram();
 	p_prg->addShaderFromSource(Shader::ShaderType::Vertex, vertexShader);
 	{
 		std::string fragment = std::string(fragmentShaderPassHeader);
@@ -409,7 +411,7 @@ void TMyAppWnd::init_wnd(int width, int height)
     p_prg_a->enableAttributeArray(1);
     p_prg_a->setAttributeBuffer(1, GL_FLOAT, 3, 2, 5 * sizeof(GLfloat));
 	p_prg_a->release();
-#endif*/
+#endif
 
     p_vbo_idx = new BufferObject(GL_ELEMENT_ARRAY_BUFFER);
     p_vbo_idx->create();
@@ -420,12 +422,12 @@ void TMyAppWnd::init_wnd(int width, int height)
 	p_vao->release();
 	//p_prg_a->release();
 
-/*#ifdef TEST_BUF_A	
+#ifdef TEST_BUF_A	
 	p_fbo[0] = new FrameBuffer();
 	p_fbo[0]->create(width, height, false);
 	p_fbo[1] = new FrameBuffer();
 	p_fbo[1]->create(width, height, false);
-#endif*/
+#endif
 }
 
 void TMyAppWnd::on_size(int width, int height)
@@ -527,32 +529,39 @@ void TMyAppWnd::on_mouse_btn(__attribute__((unused)) int button, __attribute__((
 void TMyAppWnd::draw(void)
 {
 	glfwMakeContextCurrent(wnd);
-	
+	mpsh->draw();
+	/*
 #ifdef TEST_BUF_A
 	int channel = 0;
-	shared_ptr<Texture> texture = p_fbo[i_fbo_idx]->texture();
-	i_fbo_idx = (i_fbo_idx + 1) & 1;
+	//shared_ptr<Texture> texture = p_fbo[i_fbo_idx]->texture();
+	//i_fbo_idx = (i_fbo_idx + 1) & 1;
+
+	p_prg_a->bind();
 
 	p_fbo[i_fbo_idx]->bind();
-	p_prg_a->bind();
-	
+	i_fbo_idx = (i_fbo_idx + 1) & 1;
+	shared_ptr<Texture> texture = p_fbo[i_fbo_idx]->texture();
 	texture->bindToChannel(channel);
+	i_fbo_idx = (i_fbo_idx + 1) & 1;
+	
 
 	p_prg_a->setUniformValue("iTime", input.iTime);
 	p_prg_a->setUniformValue("iFrame", input.iFrame);
 	p_vao->bind();
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 	p_vao->release();
-	glBindTexture(GL_TEXTURE_2D, 0);
-	p_prg_a->release();
 	p_fbo[i_fbo_idx]->release();
+	i_fbo_idx = (i_fbo_idx + 1) & 1;
+	p_prg_a->release();
 #endif	
 
 	p_prg->bind();
 
 #ifdef TEST_BUF_A
 	channel = 0;
+	i_fbo_idx = (i_fbo_idx + 1) & 1;
 	p_fbo[i_fbo_idx]->texture()->bindToChannel(channel);
+	i_fbo_idx = (i_fbo_idx + 1) & 1;
 #endif
 
 	p_prg->setUniformValue("iTime", input.iTime);
@@ -560,10 +569,9 @@ void TMyAppWnd::draw(void)
 	p_vao->bind();
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 	p_vao->release();
-#ifdef TEST_BUF_A
-	glBindTexture(GL_TEXTURE_2D, 0);
-#endif
 	p_prg->release();
+	*/
+	
 
 	glfwMakeContextCurrent(NULL);
 	glfwSwapBuffers(wnd);

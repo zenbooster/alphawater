@@ -1,11 +1,12 @@
 #include "TMPShader.h"
+#include "TMyAppWnd.h"
 
 void TMPShader::log_unassigned(uint32_t channel)
 {
 	LOG4CPLUS_INFO(logger, (string)*m_channels[channel] << " отсоединён от канала " << channel << " объекта " << (string)*this);
 }
 
-void TMPShader::traverse(function<void>(TMPShader *) cb_next, function<void>(pair<uint32_t, TMPShader *>) cb)
+void TMPShader::traverse(function<void (TMPShader *)> cb_next, function<void (pair<uint32_t, TMPShader *>)> cb)
 {
 	for(auto v : m_channels)
 	{
@@ -57,11 +58,11 @@ void TMPShader::assign(uint32_t channel, TMPShader *other)
 		}
 		else
 		{
-			if(!i_assign_cnt)
+			if(!other->i_assign_cnt)
 			{
-				p_fbp = new TFrameBufferPair(wnd->width, wnd->height);
+				other->p_fbp = new TFrameBufferPair(wnd->width, wnd->height);
 			}
-			i_assign_cnt++;
+			other->i_assign_cnt++;
 		}
 
 		m_channels[channel] = other;
@@ -73,11 +74,11 @@ void TMPShader::assign(uint32_t channel, TMPShader *other)
 		{
 			log_unassigned(channel);
 			m_channels.erase(channel);
-			if(i_assign_cnt)
+			if(other->i_assign_cnt)
 			{
-				delete p_fbp;
-				p_fbp = nullptr;
-				i_assign_cnt--;
+				delete other->p_fbp;
+				other->p_fbp = nullptr;
+				other->i_assign_cnt--;
 			}
 		}
 	}
@@ -98,17 +99,7 @@ void TMPShader::link()
 		stringstream fragment;
 
 		fragment << fragmentShaderPassHeader;
-		traverse([](o){o->link();}, [](v){fragment << "uniform sampler2D iChannel" << v.first;})
-		/*for(auto v : m_channels)
-		{
-			fragment << "uniform sampler2D iChannel" << v.first;
-	
-			TMPShader *other = v.second;
-			if(other != this)
-			{
-				other->link();
-			}
-		}*/
+		traverse([](TMPShader *o){o->link();}, [&fragment](pair<uint32_t, TMPShader *> v){fragment << "uniform sampler2D iChannel" << v.first << ";" << endl;});
 		fragment << fsh;
 		fragment << fragmentShaderPassFooter;
 		p_prg->addShaderFromSource(Shader::ShaderType::Fragment, fragment.str().c_str());
@@ -133,7 +124,7 @@ void TMPShader::link()
 void TMPShader::resize(int width, int height)
 {
 	LOG4CPLUS_INFO(logger, "(" << (string)*this << ")->on_size(..)");
-	traverse([](o){o->resize(width, height);});
+	traverse([width, height](TMPShader *o){o->resize(width, height);});
 
 	p_prg->bind();
 	p_prg->setUniformValue("iResolution", wnd->input.iResolution);
@@ -145,44 +136,47 @@ void TMPShader::resize(int width, int height)
 void TMPShader::draw()
 {
 	LOG4CPLUS_INFO(logger, "(" << (string)*this << ")->draw()");
-	traverse([](o){o->draw();});
-	/*for(auto v : m_channels)
-	{
-		TMPShader *other = v.second;
-		if(other != this)
-		{
-			other->draw();
-		}
-	}*/
+	traverse([](TMPShader *o){o->draw();});
 	
 	LOG4CPLUS_INFO(logger, (string)*this << " начало отрисовки");
-	shared_ptr<Texture> texture;
-
-	if(p_fbp)
-	{
-		texture = p_fbp->texture();
-		p_fbp->swap();
-		p_fbp->bind();
-	}
+	//shared_ptr<Texture> texture;
 
 	p_prg->bind();
-	
+
 	if(p_fbp)
 	{
-		texture->bindToChannel(channel);
+		//texture = p_fbp->texture();
+		//p_fbp->swap();
+		p_fbp->bind();
+		LOG4CPLUS_INFO(logger, (string)*this << " fb[" << p_fbp->i << "] binded");
 	}
 
-	p_prg->setUniformValue("iTime", input.iTime);
-	p_prg->setUniformValue("iFrame", input.iFrame);
+	/*if(p_fbp)
+	{
+		texture->bindToChannel(channel);
+	}*/
+	for(auto v : m_channels)
+	{
+		uint32_t ch = v.first;
+		TMPShader *other = v.second;
+		other->p_fbp->swap();
+		other->p_fbp->texture()->bindToChannel(ch);
+		LOG4CPLUS_INFO(logger, (string)*this << " " << other->name << "->fb[" << other->p_fbp->i << "] texture binded to channel " << ch);
+		other->p_fbp->swap();
+	}
+
+	p_prg->setUniformValue("iTime", wnd->input.iTime);
+	p_prg->setUniformValue("iFrame", wnd->input.iFrame);
 	wnd->p_vao->bind();
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 	wnd->p_vao->release();
-	glBindTexture(GL_TEXTURE_2D, 0);
 	p_prg->release();
 
 	if(p_fbp)
 	{
 		p_fbp->release();
+		LOG4CPLUS_INFO(logger, (string)*this << " fb[" << p_fbp->i << "] released");
+		p_fbp->swap();
 	}
 
 	LOG4CPLUS_INFO(logger, (string)*this << " конец отрисовки");

@@ -22,10 +22,10 @@ private:
 	ShaderInput input;
 
 	TMPShader *mpsh;
-	/*ShaderProgram *p_prg;
+	ShaderProgram *p_prg;
 #ifdef TEST_BUF_A
 	ShaderProgram *p_prg_a;
-#endif*/
+#endif
 
 	VertexArrayObject *p_vao;
 	BufferObject *p_vbo_arr;

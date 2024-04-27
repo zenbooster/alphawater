@@ -5,7 +5,7 @@
 struct TFrameBufferPair
 {
 	FrameBuffer fbo[2];
-	int i_fbo_idx;
+	int i;
 	
 	TFrameBufferPair(int width, int height);
 	
