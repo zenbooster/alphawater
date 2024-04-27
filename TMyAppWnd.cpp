@@ -346,73 +346,6 @@ void TMyAppWnd::init_wnd(int width, int height)
 #endif
 	mpsh->link();
 
-	p_prg = new ShaderProgram();
-	p_prg->addShaderFromSource(Shader::ShaderType::Vertex, vertexShader);
-	{
-		std::string fragment = std::string(fragmentShaderPassHeader);
-		
-	#ifdef TEST_BUF_A
-		char buffer[0x20];
-		sprintf(buffer, "uniform sampler2D iChannel%d;\n", 0);
-		fragment.append(buffer);
-	#endif	
-		fragment.append(fragmentShaderSource);
-		fragment.append(fragmentShaderPassFooter);
-		p_prg->addShaderFromSource(Shader::ShaderType::Fragment, fragment.c_str());
-	}
-    p_prg->link();
-
-	log4cplus::Logger logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("vid"));
-    if (!p_prg->isLinked())
-	{
-        LOG4CPLUS_WARN(logger, LOG4CPLUS_TEXT("Не удалось слинковать шейдеры: ") << p_prg->log());
-		throw exception();
-	}
-	
-	p_prg->bind();
-	p_prg->setUniformValue("iResolution", input.iResolution);
-
-    p_prg->enableAttributeArray(0);
-    p_prg->setAttributeBuffer(0, GL_FLOAT, 0, 3, sizeof(GLfloat) * 5);
-    p_prg->enableAttributeArray(1);
-    p_prg->setAttributeBuffer(1, GL_FLOAT, 3, 2, 5 * sizeof(GLfloat));
-	
-	p_prg->release();
-
-#ifdef TEST_BUF_A
-	i_fbo_idx = 0;
-
-	p_prg_a = new ShaderProgram();
-	p_prg_a->addShaderFromSource(Shader::ShaderType::Vertex, vertexShader);
-	{
-		std::string fragment = std::string(fragmentShaderPassHeader);
-		
-		char buffer[0x20];
-		sprintf(buffer, "uniform sampler2D iChannel%d;\n", 0);
-		fragment.append(buffer);
-
-		fragment.append(fragmentShaderSource_buffer_a);
-		fragment.append(fragmentShaderPassFooter);
-		p_prg_a->addShaderFromSource(Shader::ShaderType::Fragment, fragment.c_str());
-	}
-    p_prg_a->link();
-
-    if (!p_prg_a->isLinked())
-	{
-        LOG4CPLUS_WARN(logger, LOG4CPLUS_TEXT("Не удалось слинковать шейдеры (buf A): ") << p_prg_a->log());
-		throw exception();
-	}
-	
-	p_prg_a->bind();
-	p_prg_a->setUniformValue("iResolution", input.iResolution);
-
-    p_prg_a->enableAttributeArray(0);
-    p_prg_a->setAttributeBuffer(0, GL_FLOAT, 0, 3, sizeof(GLfloat) * 5);
-    p_prg_a->enableAttributeArray(1);
-    p_prg_a->setAttributeBuffer(1, GL_FLOAT, 3, 2, 5 * sizeof(GLfloat));
-	p_prg_a->release();
-#endif
-
     p_vbo_idx = new BufferObject(GL_ELEMENT_ARRAY_BUFFER);
     p_vbo_idx->create();
     p_vbo_idx->setUsagePattern(GL_STATIC_DRAW);
@@ -420,14 +353,6 @@ void TMyAppWnd::init_wnd(int width, int height)
     p_vbo_idx->allocate(p_app->indices, sizeof(p_app->indices));
 
 	p_vao->release();
-	//p_prg_a->release();
-
-#ifdef TEST_BUF_A	
-	p_fbo[0] = new FrameBuffer();
-	p_fbo[0]->create(width, height, false);
-	p_fbo[1] = new FrameBuffer();
-	p_fbo[1]->create(width, height, false);
-#endif
 }
 
 void TMyAppWnd::on_size(int width, int height)

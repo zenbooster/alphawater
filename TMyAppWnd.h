@@ -22,19 +22,10 @@ private:
 	ShaderInput input;
 
 	TMPShader *mpsh;
-	ShaderProgram *p_prg;
-#ifdef TEST_BUF_A
-	ShaderProgram *p_prg_a;
-#endif
 
 	VertexArrayObject *p_vao;
 	BufferObject *p_vbo_arr;
 	BufferObject *p_vbo_idx;
-
-#ifdef TEST_BUF_A
-	FrameBuffer *p_fbo[2];
-	int i_fbo_idx;
-#endif
 
 	bool is_should_close();
 	void initilizeUniformValue(int width, int height);
