@@ -179,15 +179,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     #endif
     
     fragColor = mix(adv + vec4(VELOCITY_SCALE * (delta_v + pump), offset), init, UPDATE_SMOOTHING);
-    
-    if (iMouse.z > 0.0) {
-        vec4 mouseUV = iMouse / iResolution.xyxy;
-        vec2 delta = normz(mouseUV.zw - mouseUV.xy);
-        vec2 md = (mouseUV.xy - uv) * vec2(1.0,tx.x/tx.y);
-        float amp = exp(max(-12.0,-dot(md,md)/MOUSE_RADIUS));
-        fragColor.xy += VELOCITY_SCALE * MOUSE_AMP * clamp(amp * delta,-1.0,1.0);
-    }
-    
+
     // Adding a very small amount of noise on init fixes subtle numerical precision blowup problems
     if (iFrame==0) fragColor=1e-6*rand4(fragCoord, iResolution.xy, iFrame);
 }

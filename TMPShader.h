@@ -14,20 +14,22 @@ class TMPShader
 	map<uint32_t, TMPShader *> m_channels;
 	TFrameBufferPair *p_fbp;
 	int i_assign_cnt;
-
+	
 	string name;
 	string vsh;
 	string fsh;
 	ShaderProgram *p_prg;
-	
+	bool visited;
+
 	void log_unassigned(uint32_t channel);
-	void traverse(function<void (TMPShader *)> cb_next, function<void (pair<uint32_t, TMPShader *>)> cb = [](pair<uint32_t, TMPShader *>){});
 
 public:
 	TMPShader(TMyAppWnd *wnd, string name, string vsh, string fsh);
 	~TMPShader();
 	
 	operator string() const;
+	
+	void traverse(bool visited_value, function<void (TMPShader *)> cb_next, function<void (pair<uint32_t, TMPShader *>)> cb = [](pair<uint32_t, TMPShader *>){});
 	
 	void assign(uint32_t channel, TMPShader *other);
 	void link();

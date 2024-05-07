@@ -28,8 +28,8 @@ const char *fragmentShaderPassHeader =
     "struct Channel {\n"
     "   vec3    resolution;\n"
     "   float   time;\n"
-    "};\n"
-    "uniform Channel iChannel[4];\n";
+    "};\n";
+//    "uniform Channel iChannel[4];\n";
 
 const char *fragmentShaderPassFooter =
     "out vec4 fragColor;\n"

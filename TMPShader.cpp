@@ -1,14 +1,16 @@
 #include "TMPShader.h"
 #include "TMyAppWnd.h"
+#include <map>
+#include <stack>
 
 void TMPShader::log_unassigned(uint32_t channel)
 {
 	LOG4CPLUS_INFO(logger, (string)*m_channels[channel] << " отсоединён от канала " << channel << " объекта " << (string)*this);
 }
 
-void TMPShader::traverse(function<void (TMPShader *)> cb_next, function<void (pair<uint32_t, TMPShader *>)> cb)
+void TMPShader::traverse(bool visited_value, function<void (TMPShader *)> cb_next, function<void (pair<uint32_t, TMPShader *>)> cb)
 {
-	for(auto v : m_channels)
+	/*for(auto v : m_channels)
 	{
 		cb(v);
 
@@ -17,7 +19,24 @@ void TMPShader::traverse(function<void (TMPShader *)> cb_next, function<void (pa
 		{
 			cb_next(other);
 		}
-	}
+	}*/
+	
+	//map<TMPShader *, bool > visited;
+	//stack<TMPShader *> st;
+	
+	visited = visited_value;
+
+	for(auto v : m_channels)
+	{
+		cb(v);
+
+		TMPShader *other = v.second;
+		if(other->visited != visited_value)
+		{
+			//other->traverse(visited_value, cb_next, cb);
+			cb_next(other);
+		}
+	}	
 }
 
 TMPShader::TMPShader(TMyAppWnd *wnd, string name, string vsh, string fsh):
@@ -27,7 +46,8 @@ TMPShader::TMPShader(TMyAppWnd *wnd, string name, string vsh, string fsh):
 	name(name),
 	vsh(vsh),
 	fsh(fsh),
-	p_prg(nullptr)
+	p_prg(nullptr),
+	visited(false)
 {
 	logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("app"));
 	LOG4CPLUS_INFO(logger, "Создан " << (string)*this);
@@ -45,7 +65,8 @@ TMPShader::~TMPShader()
 
 TMPShader::operator string() const
 {
-	return tostringstream() << "TMPShader(, \"" << name << "\", , ); this=" << this;
+	//return tostringstream() << "TMPShader(, \"" << name << "\", , ); this=" << this;
+	return tostringstream() << "TMPShader(, \"" << name << "\", , )";
 }
 
 void TMPShader::assign(uint32_t channel, TMPShader *other)
@@ -99,7 +120,7 @@ void TMPShader::link()
 		stringstream fragment;
 
 		fragment << fragmentShaderPassHeader;
-		traverse([](TMPShader *o){o->link();}, [&fragment](pair<uint32_t, TMPShader *> v){fragment << "uniform sampler2D iChannel" << v.first << ";" << endl;});
+		traverse(!visited, [](TMPShader *o){o->link();}, [&fragment](pair<uint32_t, TMPShader *> v){fragment << "uniform sampler2D iChannel" << v.first << ";" << endl;});
 		fragment << fsh;
 		fragment << fragmentShaderPassFooter;
 		p_prg->addShaderFromSource(Shader::ShaderType::Fragment, fragment.str().c_str());
@@ -124,7 +145,7 @@ void TMPShader::link()
 void TMPShader::resize(int width, int height)
 {
 	LOG4CPLUS_INFO(logger, "(" << (string)*this << ")->on_size(..)");
-	traverse([width, height](TMPShader *o){o->resize(width, height);});
+	traverse(!visited, [width, height](TMPShader *o){o->resize(width, height);});
 
 	p_prg->bind();
 	p_prg->setUniformValue("iResolution", wnd->input.iResolution);
@@ -139,7 +160,7 @@ void TMPShader::resize(int width, int height)
 void TMPShader::draw()
 {
 	LOG4CPLUS_INFO(logger, "(" << (string)*this << ")->draw()");
-	traverse([](TMPShader *o){o->draw();});
+	traverse(!visited, [](TMPShader *o){o->draw();});
 	
 	LOG4CPLUS_INFO(logger, (string)*this << " начало отрисовки");
 
@@ -155,7 +176,11 @@ void TMPShader::draw()
 	{
 		uint32_t ch = v.first;
 		TMPShader *other = v.second;
+		string name = tostringstream() << "iChannel" << ch;
+		GLint location = glGetUniformLocation(p_prg->programId(), name.c_str());
 		other->p_fbp->texture()->bindToChannel(ch);
+		//p_prg->setUniformValue(name.c_str(), ch);
+		glUniform1i(location, ch);
 		LOG4CPLUS_INFO(logger, (string)*this << " " << other->name << "->fb[" << other->p_fbp->i << "] texture binded to channel " << ch);
 	}
 

@@ -15,7 +15,6 @@
 #include <log4cplus/initializer.h>
 
 #define DATA_FOLDER "../data"
-#define PACK_NAME "curling-smoke"
 #define TEST_BUF_A
 
 using namespace std;

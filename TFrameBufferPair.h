@@ -10,7 +10,7 @@ struct TFrameBufferPair
 	TFrameBufferPair(int width, int height);
 	
 	void resize(int width, int height);
-	shared_ptr<Texture> texture();
+	shared_ptr<Texture> texture(bool is_swap = false);
 	void swap();
 	void bind();
 	void release();

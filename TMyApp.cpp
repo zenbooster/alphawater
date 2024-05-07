@@ -168,6 +168,8 @@ void TMyApp::show_usage(void)
 	cout << s << endl;
 }
 
+string s_pack_name = "rhodium-liquid-carbon";
+
 TMyApp::TMyApp(int argc, char *argv[])
 {
 	switch(argc)
@@ -186,6 +188,12 @@ TMyApp::TMyApp(int argc, char *argv[])
 				RECT rc;
 				GetClientRect(h_wnd_parent, &rc);
 				MoveWindow(h_wnd, rc.left, rc.top, rc.right, rc.bottom, TRUE);
+			}
+			else
+			if(!strcmp(argv[1], "/r"))
+			{
+				s_pack_name = argv[2];
+				init(false, false, true);
 			}
 			else
 			{

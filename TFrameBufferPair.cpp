@@ -18,9 +18,9 @@ void TFrameBufferPair::resize(int width, int height)
 	}
 }
 
-shared_ptr<Texture> TFrameBufferPair::texture()
+shared_ptr<Texture> TFrameBufferPair::texture(bool is_swap)
 {
-	return fbo[j].texture();
+	return fbo[is_swap ? i : j].texture();
 }
 
 void TFrameBufferPair::swap()
