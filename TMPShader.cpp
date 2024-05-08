@@ -178,10 +178,17 @@ void TMPShader::draw()
 		TMPShader *other = v.second;
 		string name = tostringstream() << "iChannel" << ch;
 		GLint location = glGetUniformLocation(p_prg->programId(), name.c_str());
-		other->p_fbp->texture()->bindToChannel(ch);
-		//p_prg->setUniformValue(name.c_str(), ch);
+		if(location < 0)
+		{
+			LOG4CPLUS_ERROR(logger, (string)*this << " " << other->name << "name=" << name << "; location=" << location);
+		}
+		glActiveTexture(GL_TEXTURE0 + ch);
 		glUniform1i(location, ch);
-		LOG4CPLUS_INFO(logger, (string)*this << " " << other->name << "->fb[" << other->p_fbp->i << "] texture binded to channel " << ch);
+		glBindTexture(GL_TEXTURE_2D, other->p_fbp->texture()->textureId());
+		//other->p_fbp->texture()->bindToChannel(ch);
+		//p_prg->setUniformValue(name.c_str(), ch);
+		//glUniform1i(location, ch);
+		LOG4CPLUS_INFO(logger, (string)*this << " " << other->name << "->fb[" << other->p_fbp->j << "] texture binded to channel " << ch);
 	}
 
 	p_prg->setUniformValue("iTime", wnd->input.iTime);
