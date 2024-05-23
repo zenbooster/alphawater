@@ -10,20 +10,6 @@ void TMPShader::log_unassigned(uint32_t channel)
 
 void TMPShader::traverse(bool visited_value, function<void (TMPShader *)> cb_next, function<void (pair<uint32_t, TMPShader *>)> cb)
 {
-	/*for(auto v : m_channels)
-	{
-		cb(v);
-
-		TMPShader *other = v.second;
-		if(other != this)
-		{
-			cb_next(other);
-		}
-	}*/
-	
-	//map<TMPShader *, bool > visited;
-	//stack<TMPShader *> st;
-	
 	visited = visited_value;
 
 	for(auto v : m_channels)

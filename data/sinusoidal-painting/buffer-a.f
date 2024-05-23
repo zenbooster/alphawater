@@ -41,46 +41,28 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     float mask = frame.r;
     float sdf = frame.g;
     
-    // interaction
-    if (iMouse.z > 0.)
-    {
-        vec2 mouse = iMouse.xy;
-        vec4 prev = texture(iChannel0, vec2(0));
-        vec3 dither = hash(uvec3(fragCoord, iFrame)); 
-        mouse = prev.z > 0. ? mix(mouse, prev.xy, dither.x) : mouse;
-        mouse = 1.5*(mouse-R.xy/2.)/R.y;
-        float thin = .04+.03*sin(iTime*20.);
-        float dist = length(p-mouse);
-        float msk = smoothstep(thin,.0,dist);
-        if (msk > .001) frame.b = iTime;
-        sdf = sdf < .001 ? dist : min(sdf, dist);
-        mask += msk;
-    }
-    else
-    {
-        // accumulate noisy results
-        for (float frames = 20.; frames > 0.; --frames)
-        {
-            // cursor timeline with noise offset
-            float f = float(iFrame) + frames * 200.;
-            vec3 rng = hash(uvec3(fragCoord, f));
-            float cursor = rng.x*.03+iTime;
+	// accumulate noisy results
+	for (float frames = 20.; frames > 0.; --frames)
+	{
+		// cursor timeline with noise offset
+		float f = float(iFrame) + frames * 200.;
+		vec3 rng = hash(uvec3(fragCoord, f));
+		float cursor = rng.x*.03+iTime;
 
-            // brush
-            float thin = .04+.03*sin(cursor*20.);
-            float dist = length(p-move(cursor));
-            float msk = smoothstep(thin,.0,dist);
+		// brush
+		float thin = .04+.03*sin(cursor*20.);
+		float dist = length(p-move(cursor));
+		float msk = smoothstep(thin,.0,dist);
 
-            // timestamp
-            if (msk > .001) frame.b = iTime;
+		// timestamp
+		if (msk > .001) frame.b = iTime;
 
-            // distance
-            sdf = sdf < .001 ? dist : min(sdf, dist);
+		// distance
+		sdf = sdf < .001 ? dist : min(sdf, dist);
 
-            // accumulate
-            mask += msk;
-        }
-    }
+		// accumulate
+		mask += msk;
+	}
 
     // save data
     frame.r = mask;

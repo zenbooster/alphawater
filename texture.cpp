@@ -66,7 +66,8 @@ void Texture::loadFromePixels(GLubyte *pixels, int w, int h, int depth, int chan
 void Texture::createEmpty(int w, int h)
 {
     glBindTexture(GL_TEXTURE_2D, textureId());
-    glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, w, h);
+    //glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, w, h);
+    glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA32F, w, h);
 	//glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureId(), 0);
 

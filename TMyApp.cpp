@@ -130,8 +130,8 @@ void TMyApp::init(bool is_screensaver, bool is_fullscreen, bool is_visible)
 	else
 	{
 		i_wnd_cnt = 1;
-		width = 200;
-		height = 200;
+		width = 800;
+		height = 450;
 		
 		for(int i = i_wnd_cnt - 1; i >= 0; i--)
 		{

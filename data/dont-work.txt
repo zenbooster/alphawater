@@ -1,3 +1,0 @@
-multiscale-mip-fluid 
-planetary-sph
-sinusoidal-painting
