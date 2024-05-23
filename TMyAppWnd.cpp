@@ -352,7 +352,8 @@ void TMyAppWnd::draw(void)
 
 	glfwMakeContextCurrent(NULL);
 	glfwSwapBuffers(wnd);
-	
-	input.iTime += input.iTimeDelta * p_app->delta;
+
+	input.iTimeDelta = p_app->delta;
+	input.iTime += p_app->delta;
 	input.iFrame++;
 }

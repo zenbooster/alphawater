@@ -178,6 +178,7 @@ void TMPShader::draw()
 	}
 
 	p_prg->setUniformValue("iTime", wnd->input.iTime);
+	p_prg->setUniformValue("iTimeDelta", wnd->input.iTimeDelta);
 	p_prg->setUniformValue("iFrame", wnd->input.iFrame);
 	wnd->p_vao->bind();
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
