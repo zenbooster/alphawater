@@ -1,16 +1,19 @@
 #include "framebuffer.h"
 #include "common.h"
 
-FrameBuffer::FrameBuffer()
+FrameBuffer::FrameBuffer(TTexParams pars)
     : mFrameBufferId(0),
       mOldFrameBufferId(0),
       mDepthBuffer(0),
       mAllocated(false),
       mBinded(false),
       mRenderBufferWidth(0),
-      mRenderBufferHeight(0),
-	  tex(make_shared<Texture>(GL_TEXTURE_2D, GL_CLAMP_TO_EDGE, GL_LINEAR, false))
+      mRenderBufferHeight(0)
 {
+	for(auto v : pars)
+	{
+		tex[v] = make_shared<Texture>(GL_TEXTURE_2D, v.wrapMode, v.filterMode, false);
+	}
 }
 
 FrameBuffer::~FrameBuffer()
@@ -27,7 +30,10 @@ FrameBuffer::~FrameBuffer()
 void FrameBuffer::resize(GLint w, GLint h, Texture::TEnumResizeContent erc)
 {
     bind();
-	tex->resize(w, h, erc);
+	for(auto& [k, v] : tex)
+	{
+		v->resize(w, h, erc);
+	}
 
     if (mDepthBuffer != 0)
     {
@@ -58,7 +64,10 @@ void FrameBuffer::create(GLint w, GLint h, bool depth)
 
     bind();
 
-	tex->createEmpty(w, h);
+	for(auto& [k, v] : tex)
+	{
+		v->createEmpty(w, h);
+	}
 
     if (depth)
     {

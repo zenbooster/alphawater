@@ -1,6 +1,6 @@
 prg,ch0,ch1,ch2,ch3
-i,a,d,b,c
-a,a,d,c,b
-b,a
-c,b
-d,a,d
+i,a:m:r,d:m:r,b::r,c::r
+a,a::r,d::r,c::r,b::r
+b,a:m:r
+c,b:m:r
+d,a:m:r,d:m:r
