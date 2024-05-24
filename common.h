@@ -29,4 +29,5 @@ struct tostringstream
     void clear () { oss.str(std::string()); }    
 };
 
+void split(const string& str, char delimiter, vector<string>& tokens);
 #endif

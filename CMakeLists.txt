@@ -18,7 +18,7 @@ include_directories(fast-cpp-csv-parser)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Wall -Wextra -std=c++20 -mwindows -static -static-libgcc -static-libstdc++")
 
-set(SOURCE_FILES main.cpp glad/src/glad.c TMyApp.cpp TMyAppWnd.cpp TMPShader.cpp TFrameBufferPair.cpp framebuffer.cpp shader.cpp shaderprogram.cpp shaders.cpp vertexarrayobject.cpp bufferobject.cpp texture.cpp filesystem.cpp)
+set(SOURCE_FILES main.cpp glad/src/glad.c TMyApp.cpp TMyAppWnd.cpp TMPShader.cpp TFrameBufferPair.cpp framebuffer.cpp shader.cpp shaderprogram.cpp shaders.cpp vertexarrayobject.cpp bufferobject.cpp texture.cpp filesystem.cpp common.cpp)
 add_executable(alphawater ${SOURCE_FILES})
 
 target_link_libraries(alphawater glfw

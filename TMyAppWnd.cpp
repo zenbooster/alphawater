@@ -1,6 +1,5 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wstringop-truncation"
-#include <csv.h>
 #pragma GCC diagnostic pop
 #include "TMyAppWnd.h"
 #include "TMyApp.h"
@@ -154,33 +153,73 @@ void TMyAppWnd::load(string pack_name)
 		fname = "config.csv";
 		fspec = tostringstream() << s_pack_folder << fname;
 		LOG4CPLUS_INFO(logger, LOG4CPLUS_TEXT("Загружаем конфиг: ") << fname);
-		io::CSVReader<5> in(fspec.c_str());
-		in.read_header(io::ignore_missing_column, "prg", "ch0", "ch1", "ch2", "ch3");
-		string prg;//, ch0, ch1, ch2, ch3;
-		map<int, string> m_ch;
-		while(in.read_row(prg, m_ch[0], m_ch[1], m_ch[2], m_ch[3]))
+		ifstream f(fspec);
+		string line;
+		if(getline(f, line))
 		{
-			stringstream ss_log;
-			ss_log << prg << ": ";
-			TEnumFile ef = m_tok2ef[prg];
+			vector<string> tokens;
+			int i_tokens_size;
 
-			for(auto v : m_ch)
+			split(line, ',', tokens);
+			i_tokens_size = (int)tokens.size();
+
+			if(i_tokens_size != 5)
 			{
-				int ch = v.first;
-				string tgt = v.second;
-				if(!tgt.empty())
+				LOG4CPLUS_ERROR(logger, LOG4CPLUS_TEXT("Неверное количество столбцов в заголовке: ") << line);
+				throw exception();
+			}
+			
+			if(	tokens[0] != "prg" || 
+				tokens[1] != "ch0" ||
+				tokens[2] != "ch1" ||
+				tokens[3] != "ch2" ||
+				tokens[4] != "ch3"
+			)
+			{
+				LOG4CPLUS_ERROR(logger, LOG4CPLUS_TEXT("Неверный заголовок: ") << line);
+				throw exception();
+			}
+
+			string prg;//, ch0, ch1, ch2, ch3;
+			map<int, string> m_ch;
+
+			while(getline(f, line))
+			{
+				tokens.clear();
+				split(line, ',', tokens);
+				i_tokens_size = (int)tokens.size();
+
+				if(i_tokens_size < 1 || i_tokens_size > 5)
 				{
+					LOG4CPLUS_ERROR(logger, LOG4CPLUS_TEXT("Неверное количество столбцов в данных: ") << line);
+					throw exception();
+				}
+
+				prg = tokens[0];
+
+				stringstream ss_log;
+				ss_log << prg << ": ";
+				TEnumFile ef = m_tok2ef[prg];
+				
+				for(int i = 1; i < i_tokens_size; i++)
+				{
+					int ch = i - 1;
+					string tgt = tokens[i];
+					
 					ss_log << tgt;
-					if(ch < 3)
+					if(ch < i_tokens_size - 2)
 					{
 						ss_log << ", ";
 					}
-					TEnumFile ef_tgt = m_tok2ef[tgt];
-					m_mpshaders[ef]->assign(ch, m_mpshaders[ef_tgt]);
+
+					if(!tgt.empty())
+					{
+						TEnumFile ef_tgt = m_tok2ef[tgt];
+						m_mpshaders[ef]->assign(ch, m_mpshaders[ef_tgt]);
+					}
 				}
+				LOG4CPLUS_INFO(logger, LOG4CPLUS_TEXT("") << ss_log.str());
 			}
-			//LOG4CPLUS_INFO(logger, LOG4CPLUS_TEXT("") << prg << ": " << ch0 << ", " << ch1 << ", " << ch2 << ", " << ch3);
-			LOG4CPLUS_INFO(logger, LOG4CPLUS_TEXT("") << ss_log.str());
 		}
 	}
 	mpsh = m_mpshaders[ef_image];
