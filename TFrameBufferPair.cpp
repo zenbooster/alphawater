@@ -1,8 +1,10 @@
 #include "TFrameBufferPair.h"
 #include <utility>
 
-TFrameBufferPair::TFrameBufferPair(int width, int height):
-	i(0), j(1)
+TFrameBufferPair::TFrameBufferPair(int width, int height, TTexParams& pars):
+	i(0),
+	j(1),
+	fbo{FrameBuffer(pars), FrameBuffer(pars)}
 {
 	for(int i = 0; i < 2; i++)
 	{
@@ -18,9 +20,9 @@ void TFrameBufferPair::resize(int width, int height)
 	}
 }
 
-shared_ptr<Texture> TFrameBufferPair::texture(bool is_swap)
+shared_ptr<Texture> TFrameBufferPair::texture(TTexParam par, bool is_swap)
 {
-	return fbo[is_swap ? i : j].texture();
+	return fbo[is_swap ? i : j].texture(par);
 }
 
 void TFrameBufferPair::swap()

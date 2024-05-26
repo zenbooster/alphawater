@@ -1,6 +1,8 @@
 #include "framebuffer.h"
 #include "common.h"
 
+const TTexParam FrameBuffer::def_par;
+
 FrameBuffer::FrameBuffer(TTexParams pars)
     : mFrameBufferId(0),
       mOldFrameBufferId(0),
@@ -30,9 +32,10 @@ FrameBuffer::~FrameBuffer()
 void FrameBuffer::resize(GLint w, GLint h, Texture::TEnumResizeContent erc)
 {
     bind();
+	int i = 0;
 	for(auto& [k, v] : tex)
 	{
-		v->resize(w, h, erc);
+		v->resize(w, h, i++, erc);
 	}
 
     if (mDepthBuffer != 0)
@@ -64,10 +67,19 @@ void FrameBuffer::create(GLint w, GLint h, bool depth)
 
     bind();
 
+	int i = 0;
 	for(auto& [k, v] : tex)
 	{
-		v->createEmpty(w, h);
+		v->createEmpty(w, h, i++);
 	}
+
+	GLenum *buffers = new GLenum[i];
+	for(int j = 0; j < i; j++)
+	{
+		buffers[j] = GL_COLOR_ATTACHMENT0 + j;
+	}
+	glDrawBuffers(i, buffers);
+	delete [] buffers;
 
     if (depth)
     {

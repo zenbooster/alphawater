@@ -11,7 +11,7 @@
 class FrameBuffer
 {
 public:
-	static constexpr TTexParam def_par = {GL_CLAMP_TO_EDGE, GL_LINEAR};
+	static const TTexParam def_par;
 	FrameBuffer(TTexParams pars = {def_par});
     ~FrameBuffer();
 

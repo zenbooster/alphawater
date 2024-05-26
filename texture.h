@@ -49,8 +49,8 @@ public:
     void loadFromFile(const char *filename);
     void loadFromePixels(GLubyte *pixels, GLint w, GLint h, GLint depth, GLint channels, bool isFloat);
 
-    void createEmpty(GLint w, GLint h);
-	void resize(int w, int h, TEnumResizeContent erc = ercNone);
+    void createEmpty(GLint w, GLint h, int i = 0);
+	void resize(int w, int h, int i = 0, TEnumResizeContent erc = ercNone);
 
     void bindToChannel(GLint channel);
     void release();

@@ -5,10 +5,10 @@
 
 void TMPShader::log_unassigned(uint32_t channel)
 {
-	LOG4CPLUS_INFO(logger, (string)*m_channels[channel] << " отсоединён от канала " << channel << " объекта " << (string)*this);
+	LOG4CPLUS_INFO(logger, (string)*m_channels[channel]->mpshader << " отсоединён от канала " << channel << " объекта " << (string)*this);
 }
 
-void TMPShader::traverse(bool visited_value, function<void (TMPShader *)> cb_next, function<void (pair<uint32_t, TMPShader *>)> cb)
+void TMPShader::traverse(bool visited_value, function<void (TMPShader *)> cb_next, function<void (pair<uint32_t, shared_ptr<TChannel>>)> cb)
 {
 	visited = visited_value;
 
@@ -16,7 +16,7 @@ void TMPShader::traverse(bool visited_value, function<void (TMPShader *)> cb_nex
 	{
 		cb(v);
 
-		TMPShader *other = v.second;
+		TMPShader *other = v.second->mpshader;
 		if(other->visited != visited_value)
 		{
 			//other->traverse(visited_value, cb_next, cb);
@@ -51,11 +51,10 @@ TMPShader::~TMPShader()
 
 TMPShader::operator string() const
 {
-	//return tostringstream() << "TMPShader(, \"" << name << "\", , ); this=" << this;
 	return tostringstream() << "TMPShader(, \"" << name << "\", , )";
 }
 
-void TMPShader::assign(uint32_t channel, TMPShader *other)
+void TMPShader::assign(uint32_t channel, TMPShader *other, TTexParam& par, TTexParams& pars)
 {
 	if(other)
 	{
@@ -67,13 +66,13 @@ void TMPShader::assign(uint32_t channel, TMPShader *other)
 		{
 			if(!other->i_assign_cnt)
 			{
-				other->p_fbp = new TFrameBufferPair(wnd->width, wnd->height);
+				other->p_fbp = new TFrameBufferPair(wnd->width, wnd->height, pars);
 			}
 			other->i_assign_cnt++;
 		}
 
-		m_channels[channel] = other;
-		LOG4CPLUS_INFO(logger, (string)*other << " присоединён к каналу " << channel << " объекта " << (string)*this);
+		m_channels[channel] = make_shared<TChannel>(other, par);
+		LOG4CPLUS_INFO(logger, (string)*other << ":" << (string)par << " присоединён к каналу " << channel << " объекта " << (string)*this);
 	}
 	else
 	{
@@ -106,7 +105,7 @@ void TMPShader::link()
 		stringstream fragment;
 
 		fragment << fragmentShaderPassHeader;
-		traverse(!visited, [](TMPShader *o){o->link();}, [&fragment](pair<uint32_t, TMPShader *> v){fragment << "uniform sampler2D iChannel" << v.first << ";" << endl;});
+		traverse(!visited, [](TMPShader *o){o->link();}, [&fragment](pair<uint32_t, shared_ptr<TChannel>> v){fragment << "uniform sampler2D iChannel" << v.first << ";" << endl;});
 		fragment << fsh;
 		fragment << fragmentShaderPassFooter;
 		p_prg->addShaderFromSource(Shader::ShaderType::Fragment, fragment.str().c_str());
@@ -161,7 +160,8 @@ void TMPShader::draw()
 	for(auto v : m_channels)
 	{
 		uint32_t ch = v.first;
-		TMPShader *other = v.second;
+		TChannel channel = *(v.second);
+		TMPShader *other = channel.mpshader;
 		string name = tostringstream() << "iChannel" << ch;
 		GLint location = glGetUniformLocation(p_prg->programId(), name.c_str());
 		if(location < 0)
@@ -170,11 +170,11 @@ void TMPShader::draw()
 		}
 		glActiveTexture(GL_TEXTURE0 + ch);
 		glUniform1i(location, ch);
-		glBindTexture(GL_TEXTURE_2D, other->p_fbp->texture()->textureId());
+		glBindTexture(GL_TEXTURE_2D, other->p_fbp->texture(channel.par)->textureId());
 		//other->p_fbp->texture()->bindToChannel(ch);
 		//p_prg->setUniformValue(name.c_str(), ch);
 		//glUniform1i(location, ch);
-		LOG4CPLUS_INFO(logger, (string)*this << " " << other->name << "->fb[" << other->p_fbp->j << "] texture binded to channel " << ch);
+		LOG4CPLUS_INFO(logger, (string)*this << " " << other->name << "->fb[" << other->p_fbp->j << "][" << (string)channel.par << "] texture binded to channel " << ch);
 	}
 
 	p_prg->setUniformValue("iTime", wnd->input.iTime);

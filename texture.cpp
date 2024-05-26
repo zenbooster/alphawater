@@ -63,13 +63,13 @@ void Texture::loadFromePixels(GLubyte *pixels, int w, int h, int depth, int chan
     loadPixels(pixels, w, h, depth, channels, isFloat, 0);
 }
 
-void Texture::createEmpty(int w, int h)
+void Texture::createEmpty(int w, int h, int i)
 {
     glBindTexture(GL_TEXTURE_2D, textureId());
     //glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, w, h);
     glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA16F, w, h);
 	//glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureId(), 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, textureId(), 0);
 
     mWidth = w;
     mHeight = h;
@@ -78,16 +78,17 @@ void Texture::createEmpty(int w, int h)
 	set_params();
 }
 
-void Texture::resize(int w, int h, TEnumResizeContent erc)
+void Texture::resize(int w, int h, int i, TEnumResizeContent erc)
 {
-	glReadBuffer(GL_COLOR_ATTACHMENT0);
+	glReadBuffer(GL_COLOR_ATTACHMENT0 + i);
 
 	shared_ptr<TextureIdHolder> tih_new = make_shared<TextureIdHolder>();
 	GLint i_active;
 	glGetIntegerv(GL_ACTIVE_TEXTURE, &i_active);
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, tih_new->textureId());
-	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, w, h);
+	//glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, w, h);
+	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA16F, w, h);
 	
 	set_params();
 
@@ -129,7 +130,7 @@ void Texture::resize(int w, int h, TEnumResizeContent erc)
 
 	glActiveTexture(i_active);
 	tih = tih_new;
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureId(), 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, textureId(), 0);
 	
 	mWidth = w;
 	mHeight = h;
@@ -196,6 +197,7 @@ void Texture::set_params(void)
     } else if (mFilterMode == GL_MIPMAP) {
         glTexParameteri(mTarget, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
         glTexParameteri(mTarget, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glGenerateMipmap(mTarget);
     } else {
         glTexParameteri(mTarget, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(mTarget, GL_TEXTURE_MAG_FILTER, GL_LINEAR);

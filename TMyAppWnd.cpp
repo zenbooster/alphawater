@@ -4,6 +4,7 @@
 #include "TMyAppWnd.h"
 #include "TMyApp.h"
 #include "common.h"
+#include <unordered_map>
 
 extern string s_pack_name;
 
@@ -182,7 +183,18 @@ void TMyAppWnd::load(string pack_name)
 
 			string prg;//, ch0, ch1, ch2, ch3;
 			map<int, string> m_ch;
-
+			
+			struct TAssignInfo
+			{
+				TMPShader *src;
+				int ch;
+				TMPShader *dst;
+				TTexParam par;
+			};
+			vector<TAssignInfo> assign_info;
+			
+			unordered_map<TMPShader *, TTexParams> ef2tp;
+			
 			while(getline(f, line))
 			{
 				tokens.clear();
@@ -203,6 +215,7 @@ void TMyAppWnd::load(string pack_name)
 				
 				for(int i = 1; i < i_tokens_size; i++)
 				{
+					LOG4CPLUS_ERROR(logger, LOG4CPLUS_TEXT("loop begin"));
 					int ch = i - 1;
 					string tgt = tokens[i];
 					
@@ -214,11 +227,51 @@ void TMyAppWnd::load(string pack_name)
 
 					if(!tgt.empty())
 					{
+						vector<string> subtokens;
+						int i_subtokens_size;
+
+						LOG4CPLUS_ERROR(logger, "tgt: " << tgt);
+						split(tgt, ':', subtokens);
+						i_subtokens_size = (int)subtokens.size();
+						LOG4CPLUS_ERROR(logger, "i_subtokens_size: " << i_subtokens_size);
+						
+						tgt = subtokens[0];
+						
+						TTexParam par;
+						GLenum *p[] = {&par.filterMode, &par.wrapMode};
+						unordered_map<string, GLenum> c2fm = {
+							{"n", GL_NEAREST},
+							{"l", GL_LINEAR},
+							{"m", GL_MIPMAP},
+							{"", GL_LINEAR}
+						};
+						unordered_map<string, GLenum> c2wm = {
+							{"c", GL_CLAMP},
+							{"r", GL_REPEAT},
+							{"", GL_CLAMP}
+						};
+						vector<unordered_map<string, GLenum>*> c2x = {&c2fm, &c2wm};
+						
+						for(int k = 0, j = 1; j < i_subtokens_size; k++, j++)
+						{
+							LOG4CPLUS_ERROR(logger, "subtokens[" << j << "]: " << subtokens[j]);
+							*p[k] = (*c2x[k])[subtokens[j]];
+						}
+
 						TEnumFile ef_tgt = m_tok2ef[tgt];
-						m_mpshaders[ef]->assign(ch, m_mpshaders[ef_tgt]);
+						TAssignInfo ai = {m_mpshaders[ef], ch, m_mpshaders[ef_tgt], par};
+						assign_info.push_back(ai);
+						
+						ef2tp[ai.dst].insert(par);
 					}
+					LOG4CPLUS_ERROR(logger, LOG4CPLUS_TEXT("loop end"));
 				}
 				LOG4CPLUS_INFO(logger, LOG4CPLUS_TEXT("") << ss_log.str());
+			} // while(getline(f, line))
+
+			for(auto& v : assign_info)
+			{
+				v.src->assign(v.ch, v.dst, v.par, ef2tp[v.dst]);
 			}
 		}
 	}
