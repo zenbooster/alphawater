@@ -21,7 +21,7 @@ class Texture
 private:
     GLenum mTarget;
     GLenum mWrapMode;
-	GLenum mFilterMode;
+//    GLenum mFilterMode;
     bool mVFlip;
     //bool msRGB;
 	shared_ptr<TextureIdHolder> tih;
@@ -35,12 +35,14 @@ protected:
     void loadPixels(GLubyte *pixels, GLint w, GLint h, GLint depth, GLint channels, bool isFloat, GLint cubemapLayer);
 
 public:
-	enum TEnumResizeContent
-	{
-		ercNone,
-		ercFromBottomLeft,
-		ercFromCenter
-	};
+    GLenum mFilterMode;
+
+    enum TEnumResizeContent
+    {
+        ercNone,
+        ercFromBottomLeft,
+        ercFromCenter
+    };
 
     Texture(GLenum target, GLenum wrapMode, GLenum filterMode, bool vFlip);//, bool sRGB);
     Texture(GLenum target, const std::string &filename);

@@ -4,7 +4,8 @@
 TFrameBufferPair::TFrameBufferPair(int width, int height, TTexParams& pars):
 	i(0),
 	j(1),
-	fbo{FrameBuffer(pars), FrameBuffer(pars)}
+	fbo{FrameBuffer(pars), FrameBuffer(pars)},
+	pars(pars)
 {
 	for(int i = 0; i < 2; i++)
 	{
@@ -28,6 +29,15 @@ shared_ptr<Texture> TFrameBufferPair::texture(TTexParam par, bool is_swap)
 void TFrameBufferPair::swap()
 {
 	std::swap(i, j);
+
+	for(auto v : pars)
+	{
+		shared_ptr<Texture> tx = texture(v);
+		if (tx->mFilterMode == GL_MIPMAP)
+		{
+			glGenerateTextureMipmap(tx->textureId());
+		}
+	}
 }
 
 void TFrameBufferPair::bind()

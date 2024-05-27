@@ -6,6 +6,7 @@ struct TFrameBufferPair
 {
 	int i, j;
 	FrameBuffer fbo[2];
+	TTexParams pars;
 	
 	TFrameBufferPair(int width, int height, TTexParams& pars);
 	

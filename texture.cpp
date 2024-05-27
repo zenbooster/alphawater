@@ -75,7 +75,7 @@ void Texture::createEmpty(int w, int h, int i)
     mHeight = h;
     mDepth = 1;
 
-	set_params();
+    set_params();
 }
 
 void Texture::resize(int w, int h, int i, TEnumResizeContent erc)
@@ -197,7 +197,7 @@ void Texture::set_params(void)
     } else if (mFilterMode == GL_MIPMAP) {
         glTexParameteri(mTarget, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
         glTexParameteri(mTarget, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glGenerateMipmap(mTarget);
+	//glGenerateMipmap(mTarget);
     } else {
         glTexParameteri(mTarget, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(mTarget, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
