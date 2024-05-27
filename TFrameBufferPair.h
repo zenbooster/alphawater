@@ -4,6 +4,7 @@
 
 struct TFrameBufferPair
 {
+	log4cplus::Logger logger;
 	int i, j;
 	FrameBuffer fbo[2];
 	TTexParams pars;

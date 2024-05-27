@@ -35,7 +35,7 @@ TMPShader::TMPShader(TMyAppWnd *wnd, string name, string vsh, string fsh):
 	p_prg(nullptr),
 	visited(false)
 {
-	logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("app"));
+	logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("vid"));
 	LOG4CPLUS_INFO(logger, "Создан " << (string)*this);
 
 }
@@ -183,6 +183,7 @@ void TMPShader::draw()
 	wnd->p_vao->bind();
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 	wnd->p_vao->release();
+
 	p_prg->release();
 
 	if(p_fbp)

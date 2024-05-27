@@ -29,6 +29,7 @@ public:
     GLint height() const { return mRenderBufferHeight; }
 
 private:
+	log4cplus::Logger logger;
     GLuint mFrameBufferId, mOldFrameBufferId;
     GLuint mDepthBuffer;
 

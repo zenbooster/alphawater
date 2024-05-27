@@ -215,7 +215,7 @@ void TMyAppWnd::load(string pack_name)
 				
 				for(int i = 1; i < i_tokens_size; i++)
 				{
-					LOG4CPLUS_ERROR(logger, LOG4CPLUS_TEXT("loop begin"));
+					LOG4CPLUS_INFO(logger, LOG4CPLUS_TEXT("loop begin"));
 					int ch = i - 1;
 					string tgt = tokens[i];
 					
@@ -230,10 +230,10 @@ void TMyAppWnd::load(string pack_name)
 						vector<string> subtokens;
 						int i_subtokens_size;
 
-						LOG4CPLUS_ERROR(logger, "tgt: " << tgt);
+						LOG4CPLUS_INFO(logger, "tgt: " << tgt);
 						split(tgt, ':', subtokens);
 						i_subtokens_size = (int)subtokens.size();
-						LOG4CPLUS_ERROR(logger, "i_subtokens_size: " << i_subtokens_size);
+						LOG4CPLUS_INFO(logger, "i_subtokens_size: " << i_subtokens_size);
 						
 						tgt = subtokens[0];
 						
@@ -254,7 +254,7 @@ void TMyAppWnd::load(string pack_name)
 						
 						for(int k = 0, j = 1; j < i_subtokens_size; k++, j++)
 						{
-							LOG4CPLUS_ERROR(logger, "subtokens[" << j << "]: " << subtokens[j]);
+							LOG4CPLUS_INFO(logger, "subtokens[" << j << "]: " << subtokens[j]);
 							*p[k] = (*c2x[k])[subtokens[j]];
 						}
 
@@ -264,7 +264,7 @@ void TMyAppWnd::load(string pack_name)
 						
 						ef2tp[ai.dst].insert(par);
 					}
-					LOG4CPLUS_ERROR(logger, LOG4CPLUS_TEXT("loop end"));
+					LOG4CPLUS_INFO(logger, LOG4CPLUS_TEXT("loop end"));
 				}
 				LOG4CPLUS_INFO(logger, LOG4CPLUS_TEXT("") << ss_log.str());
 			} // while(getline(f, line))

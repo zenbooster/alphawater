@@ -7,6 +7,8 @@ TFrameBufferPair::TFrameBufferPair(int width, int height, TTexParams& pars):
 	fbo{FrameBuffer(pars), FrameBuffer(pars)},
 	pars(pars)
 {
+	logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("vid"));
+
 	for(int i = 0; i < 2; i++)
 	{
 		fbo[i].create(width, height, false);
@@ -35,7 +37,13 @@ void TFrameBufferPair::swap()
 		shared_ptr<Texture> tx = texture(v);
 		if (tx->mFilterMode == GL_MIPMAP)
 		{
-			glGenerateTextureMipmap(tx->textureId());
+			GLuint tx_id = tx->textureId();
+
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, tx_id);
+
+			glGenerateMipmap(GL_TEXTURE_2D);
+			glBindTexture(GL_TEXTURE_2D, 0);
 		}
 	}
 }

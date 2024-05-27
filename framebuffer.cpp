@@ -12,8 +12,10 @@ FrameBuffer::FrameBuffer(TTexParams pars)
       mRenderBufferWidth(0),
       mRenderBufferHeight(0)
 {
+	logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("vid"));
 	for(auto v : pars)
 	{
+		LOG4CPLUS_INFO(logger, "v.wrapMode = " << v.wrapMode << "; v.filterMode = " << v.filterMode);
 		tex[v] = make_shared<Texture>(GL_TEXTURE_2D, v.wrapMode, v.filterMode, false);
 	}
 }

@@ -48,7 +48,7 @@ bool Shader::create()
 
     if (!mShaderId)
     {
-		log4cplus::Logger logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("vid"));
+        log4cplus::Logger logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("vid"));
         LOG4CPLUS_WARN(logger, LOG4CPLUS_TEXT("Could not create shader of type: ") << (int)mShaderType << ".");
         return false;
     }

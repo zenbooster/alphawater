@@ -39,8 +39,9 @@ int main(int argc, char *argv[])
 		app.run();
 		res = 0;
 	}
-	catch(exception& )
+	catch(exception& e)
 	{
+		LOG4CPLUS_ERROR(logger, "exception: " << e.what());
 		res = 1;
 	}
 	
