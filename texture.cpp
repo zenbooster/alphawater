@@ -67,7 +67,7 @@ void Texture::createEmpty(int w, int h, int i)
 {
     glBindTexture(GL_TEXTURE_2D, textureId());
 	//glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA16F, w, h);
-	glTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA16F, w, h, 0, GL_RGBA, GL_FLOAT, nullptr);
+	glTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA16F, w, h, 0, GL_RGBA, GL_HALF_FLOAT, nullptr);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, textureId(), 0);
 
     mWidth = w;
@@ -87,7 +87,7 @@ void Texture::resize(int w, int h, int i, TEnumResizeContent erc)
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, tih_new->textureId());
 	//glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA16F, w, h);
-	glTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA16F, w, h, 0, GL_RGBA, GL_FLOAT, nullptr);
+	glTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA16F, w, h, 0, GL_RGBA, GL_HALF_FLOAT, nullptr);
 	
 	set_params();
 
