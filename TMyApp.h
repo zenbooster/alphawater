@@ -30,6 +30,8 @@ class TMyApp
 			0, 2, 3
 		};
 		
+		log4cplus::Logger logger;
+		
 		bool is_parent_console;
 		bool is_fullscreen;
 		bool is_screensaver;

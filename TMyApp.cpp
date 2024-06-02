@@ -2,6 +2,7 @@
 #include "TMyApp.h"
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
+#include <filesystem>
 
 const glm::vec2 TMyApp::screen(1, 1);
 
@@ -168,63 +169,83 @@ void TMyApp::show_usage(void)
 	cout << s << endl;
 }
 
-string s_pack_name = "rhodium-liquid-carbon";
+string s_pack_name;
 
 TMyApp::TMyApp(int argc, char *argv[])
 {
-	switch(argc)
+	logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("app"));
+	
+	if((argc == 3) && !strcmp(argv[1], "/r"))
 	{
-		case 1 + 2:
+		s_pack_name = argv[2];
+		init(false, false, true);
+	}
+	else
+	{
+		srand(time(nullptr));
+		using directory_iterator = filesystem::directory_iterator;
+		vector<string> v_packs;
+		int i = 0;
+		
+		for (const auto& de : directory_iterator(DATA_FOLDER))
 		{
-			if(!strcmp(argv[1], "/p"))
+			if(de.is_directory())
 			{
-				init(true, false, false);
-
-				char *s_ptr = argv[2];
-				HWND h_wnd_parent = (HWND)stoull(s_ptr, nullptr, 10);
-				HWND h_wnd = glfwGetWin32Window(wnd[0]->wnd);
-				SetParent(h_wnd, h_wnd_parent);
-				SetWindowLong(h_wnd, GWL_STYLE, WS_VISIBLE | WS_CHILD | WS_CLIPCHILDREN);
-				RECT rc;
-				GetClientRect(h_wnd_parent, &rc);
-				MoveWindow(h_wnd, rc.left, rc.top, rc.right, rc.bottom, TRUE);
+				v_packs.push_back(de.path().filename().string());
+				i++;
 			}
-			else
-			if(!strcmp(argv[1], "/r"))
+		}
+
+		s_pack_name = v_packs[rand() % i];
+
+		switch(argc)
+		{
+			case 1 + 2:
 			{
-				s_pack_name = argv[2];
+				if(!strcmp(argv[1], "/p"))
+				{
+					init(true, false, false);
+
+					char *s_ptr = argv[2];
+					HWND h_wnd_parent = (HWND)stoull(s_ptr, nullptr, 10);
+					HWND h_wnd = glfwGetWin32Window(wnd[0]->wnd);
+					SetParent(h_wnd, h_wnd_parent);
+					SetWindowLong(h_wnd, GWL_STYLE, WS_VISIBLE | WS_CHILD | WS_CLIPCHILDREN);
+					RECT rc;
+					GetClientRect(h_wnd_parent, &rc);
+					MoveWindow(h_wnd, rc.left, rc.top, rc.right, rc.bottom, TRUE);
+				}
+				else
+				{
+					show_usage();
+					throw exception();
+				}
+				break;
+			}
+			
+			case 1 + 1:
+			{
+				if(!strcmp(argv[1], "/s"))
+				{
+					init(true, true, true);
+				}
+				else
+				if(!strcmp(argv[1], "/c"))
+				{
+				}
+				else
+				{
+					show_usage();
+					throw exception();
+				}
+				break;
+			}
+			
+			default:
+			{
 				init(false, false, true);
 			}
-			else
-			{
-				show_usage();
-				throw exception();
-			}
-			break;
-		}
-		
-		case 1 + 1:
-		{
-			if(!strcmp(argv[1], "/s"))
-			{
-				init(true, true, true);
-			}
-			else
-			if(!strcmp(argv[1], "/c"))
-			{
-			}
-			else
-			{
-				show_usage();
-				throw exception();
-			}
-			break;
-		}
-		
-		default:
-		{
-			init(false, false, true);
-		}
+		} // switch(argc)
 	}
 }
 

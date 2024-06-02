@@ -144,10 +144,10 @@ void TMPShader::resize(int width, int height)
 
 void TMPShader::draw()
 {
-	LOG4CPLUS_INFO(logger, "(" << (string)*this << ")->draw()");
+	LOG4CPLUS_DEBUG(logger, "(" << (string)*this << ")->draw()");
 	traverse(!visited, [](TMPShader *o){o->draw();});
 	
-	LOG4CPLUS_INFO(logger, (string)*this << " начало отрисовки");
+	LOG4CPLUS_DEBUG(logger, (string)*this << " начало отрисовки");
 
 	p_prg->bind();
 
@@ -174,7 +174,7 @@ void TMPShader::draw()
 		//other->p_fbp->texture()->bindToChannel(ch);
 		//p_prg->setUniformValue(name.c_str(), ch);
 		//glUniform1i(location, ch);
-		LOG4CPLUS_INFO(logger, (string)*this << " " << other->name << "->fb[" << other->p_fbp->j << "][" << (string)channel.par << "] texture binded to channel " << ch);
+		LOG4CPLUS_DEBUG(logger, (string)*this << " " << other->name << "->fb[" << other->p_fbp->j << "][" << (string)channel.par << "] texture binded to channel " << ch);
 	}
 
 	p_prg->setUniformValue("iTime", wnd->input.iTime);
@@ -189,9 +189,9 @@ void TMPShader::draw()
 	if(p_fbp)
 	{
 		p_fbp->release();
-		LOG4CPLUS_INFO(logger, (string)*this << " fb[" << p_fbp->i << "] released");
+		LOG4CPLUS_DEBUG(logger, (string)*this << " fb[" << p_fbp->i << "] released");
 		p_fbp->swap();
 	}
 
-	LOG4CPLUS_INFO(logger, (string)*this << " конец отрисовки");
+	LOG4CPLUS_DEBUG(logger, (string)*this << " конец отрисовки");
 }
