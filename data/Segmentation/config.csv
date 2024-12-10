@@ -1,0 +1,6 @@
+prg,ch0,ch1,ch2,ch3
+i,a::r,,c::r,d::r
+a,a::r,b,c::r,d::r
+b,a::r,,,d
+c,b::r
+d,c::r
