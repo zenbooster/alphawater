@@ -1,0 +1,8 @@
+#define fmod3(a,b) mod(floor(a) + floor((a)/2.)*2.+floor((a)/4.)*4.+floor((a)/8.)*8.+floor((a)/16.)*16.,b)
+#define fmod2(x,y) mod(floor(y*((x)/y+floor((x)/y)/y)),y)
+#define fmod1(x,y) mod(floor(x),y)
+#define fmod(x,y) max(mod(floor(x+floor(t0/y)),y),fmod1(x,y))
+//#define fmod(a,b) mod(mod(floor((a)),floor(1.+(a)/3.)),b)
+#define fmax(x,y,z) max(fmod(x,z),fmod(y,z))
+#define fpow(x,y) pow(y,mod(floor(x),y))
+#define floor1(x) floor(x)*floor(mod((x)/4.,2.))

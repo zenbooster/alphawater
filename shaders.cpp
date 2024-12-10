@@ -1,7 +1,7 @@
 #include "shaders.h"
 
 const char *vertexShader =
-	"#version 330 core\n"
+	"#version 420 core\n"
     "precision mediump float;\n"
     "precision mediump int;\n"
 	"layout (location = 0) in vec3 vPosition;\n"
@@ -11,7 +11,7 @@ const char *vertexShader =
     "}";
 
 const char *fragmentShaderPassHeader =	
-    "#version 330 core\n"
+    "#version 420 core\n"
     "precision mediump float;\n"
     "precision mediump int;\n"
 	"uniform vec3       iResolution;\n"
